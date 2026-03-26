@@ -1,0 +1,9 @@
+# Keep internal docs folder visible, hide its contents
+docs/internal/*
+!docs/internal/.gitkeep
+
+# Oracle external table work artifacts
+extdata/work/
+*.log
+*.bad
+*.dsc
