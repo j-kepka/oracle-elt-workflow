@@ -4,20 +4,22 @@
 - Date: 2026-03-25
 
 ## Goal
-Build a simple Oracle ELT workflow and show steady progress in small PRs.
+Build a small Oracle ELT workflow and grow it in small PRs.
 
 ## Environment
-For now we keep one simple environment: `dev/sandbox` (local).
+Current environment: local `dev/sandbox`.
 
 ## In Scope (MVP)
-- Load flat file with Oracle external table.
+- Load dated CSV files with Oracle external table.
+- Run one selected `business_date`.
+- Validate rows and keep rejects visible.
 - Move data external -> stage -> core.
 - Run load manually (procedure) and optionally by scheduler.
 
 ## Out of Scope (for now)
 - Production secrets and infrastructure details.
-- Full runbook and private planning notes.
-- Enterprise-level hardening in MVP phase.
+- Private runbooks and planning notes.
+- Full production hardening in MVP phase.
 
 ## Public Source of Truth
 - README + ADR files in `docs/adr/`.

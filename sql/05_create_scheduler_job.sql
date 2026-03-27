@@ -14,6 +14,7 @@ EXCEPTION
       RAISE;
     END IF;
 END;
+/
 
 BEGIN
   DBMS_SCHEDULER.DROP_JOB(
@@ -27,19 +28,21 @@ EXCEPTION
       RAISE;
     END IF;
 END;
+/
 
 BEGIN
   DBMS_SCHEDULER.CREATE_JOB(
     job_name        => 'DWH.JOB_LOAD_CLIENT_TRANSFERS',
-    job_type        => 'STORED_PROCEDURE',
-    job_action      => 'DWH.PRC_LOAD_CLIENT_TRANSFERS',
+    job_type        => 'PLSQL_BLOCK',
+    job_action      => q'[BEGIN dwh.prc_load_client_transfers(p_date => TRUNC(SYSDATE)); END;]',
     start_date      => SYSTIMESTAMP,
     repeat_interval => 'FREQ=MINUTELY;INTERVAL=15',
     enabled         => FALSE,
     auto_drop       => FALSE,
-    comments        => 'Reloads core_client_transfers from the current external file snapshot every 15 minutes.'
+    comments        => 'Reloads the current business-date CSV snapshot into stage and core.'
   );
 END;
+/
 
 BEGIN
   DBMS_SCHEDULER.SET_ATTRIBUTE(
@@ -48,6 +51,7 @@ BEGIN
     value     => DBMS_SCHEDULER.LOGGING_RUNS
   );
 END;
+/
 
 -- Manual control
 -- BEGIN DBMS_SCHEDULER.ENABLE('DWH.JOB_LOAD_CLIENT_TRANSFERS'); END;
