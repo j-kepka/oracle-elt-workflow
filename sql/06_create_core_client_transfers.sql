@@ -1,5 +1,6 @@
 -- Core table for the initial 1:1 curated copy of staged client transfer records
 CREATE TABLE dwh.core_client_transfers (
+  business_date     DATE              NOT NULL,
   transfer_id      NUMBER(10)        NOT NULL,
   client_id        NUMBER(10)        NOT NULL,
   source_account   VARCHAR2(34 CHAR) NOT NULL,
