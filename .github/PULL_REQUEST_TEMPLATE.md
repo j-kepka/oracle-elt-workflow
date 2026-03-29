@@ -1,5 +1,5 @@
 ## Context
-What problem are we solving and why now?
+What problem is addressed and why now?
 
 ## Decision
 What approach was chosen and why?
@@ -24,11 +24,12 @@ What approach was chosen and why?
 - 
 
 ## Rollback Plan
-How to revert safely if needed?
+How can rollback be performed safely if needed?
 
 ## Checklist
 - [ ] Documentation updated (`README`/`docs`)
 - [ ] SQL scripts ordered and named consistently
 - [ ] Backward compatibility considered
 - [ ] Security review done (no secrets committed)
+- [ ] Production-like reuse is not assumed without a separate security/infrastructure review
 - [ ] Tests/validation executed and described

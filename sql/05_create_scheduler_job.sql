@@ -34,12 +34,12 @@ BEGIN
   DBMS_SCHEDULER.CREATE_JOB(
     job_name        => 'DWH.JOB_LOAD_CLIENT_TRANSFERS',
     job_type        => 'PLSQL_BLOCK',
-    job_action      => q'[BEGIN dwh.prc_load_client_transfers(p_date => TRUNC(SYSDATE)); END;]',
+    job_action      => q'[BEGIN dwh.prc_load_client_transfers(p_date => TRUNC(SYSDATE), p_run_mode => 'AUTO'); END;]',
     start_date      => SYSTIMESTAMP,
-    repeat_interval => 'FREQ=MINUTELY;INTERVAL=15',
+    repeat_interval => 'FREQ=DAILY;BYHOUR=1;BYMINUTE=0;BYSECOND=0',
     enabled         => FALSE,
     auto_drop       => FALSE,
-    comments        => 'Reloads the current business-date CSV snapshot into stage and core.'
+    comments        => 'Runs the daily client_transfers load in AUTO mode with ready-file checks.'
   );
 END;
 /

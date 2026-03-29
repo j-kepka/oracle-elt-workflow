@@ -3,14 +3,22 @@
 Small Oracle ELT project for portfolio and learning.
 
 Current MVP (working):
-- dated CSV -> external table
+- dated CSV + `.ok` ready file -> external table
 - external table -> stage
 - invalid rows -> reject
 - stage -> core
 - one procedure for one business date
+- `MANUAL` and `AUTO` run modes
 - optional scheduler job
 
 Current environment: local `dev/sandbox`.
+
+## Security And Production Disclaimer
+
+This repository is a local MVP for portfolio and learning.
+It is not a production deployment baseline.
+Any production-like reuse should start with an independent security, infrastructure, operations, and data-governance review.
+Current grants, filesystem permissions, and scheduler setup are intentionally simplified for local smoke tests.
 
 ## Quick start
 
@@ -55,11 +63,11 @@ DEFINE DWH_PASSWORD = <DWH_PASSWORD>
 @/workspace/tests/sql/10_bootstrap_project_schema.sql
 ```
 
-5. Follow the `extdata/work` permissions step from `tests/SMOKE_TEST_RUNBOOK.md`, then run the manual smoke review:
+5. Follow the permissions step from `tests/SMOKE_TEST_RUNBOOK.md`, then run the manual smoke review:
 ```sql
 CONNECT dwh/"<DWH_PASSWORD>"@//localhost:1521/FREEPDB1
 ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
-@/workspace/tests/sql/90_manual_review_pr01_pr02.sql
+@/workspace/tests/sql/90_manual_review_pr03.sql
 ```
 
 More details:
@@ -70,18 +78,22 @@ More details:
 - `sql/02_create_external_client_transfers.sql`
 - `sql/04_create_load_procedure.sql`
 - `sql/05_create_scheduler_job.sql`
-- `sql/08_run_load_procedure.sql`
+- `sql/06_create_core_client_transfers.sql`
+- `sql/10_create_control_structures.sql`
 
 ## Project folders
 - `sql/` SQL scripts
+- `ops/` operational helpers for manual runs and validation
 - `extdata/` input files
 - `tests/` smoke harness and bootstrap scripts
 - `docs/adr/` public decisions
 
 ## Notes
 - Do not commit real passwords/secrets.
+- The `extdata/*` permission setup shown in this repo is a sandbox/dev compatibility baseline for local Docker bind mounts. It is not a production security model; any non-sandbox use requires a separate security and infrastructure review.
+- Any production-like reuse of this code should start with an independent security audit and environment-specific hardening review.
 - Keep Oracle ports on `127.0.0.1` unless remote access is really needed.
 - Keep the Oracle image pinned. Avoid `latest` in committed setup docs.
 - Input files and database records in this repo are synthetic test data.
-- Current input file pattern is `client_transfers_YYYYMMDD.csv`.
-- Internal notes are in `docs/internal/` (not public docs).
+- Current input file patterns are `client_transfers_YYYYMMDD.csv` and `client_transfers_YYYYMMDD.ok`.
+- The procedure supports `AUTO` status handling (`WAITING` before the cutoff, `FAILED` after the cutoff), but the bundled scheduler does not yet re-drive `WAITING` rows from `next_retry_ts`.

@@ -40,6 +40,7 @@ CONNECT dwh/"&&DWH_PASSWORD"@&&PDB_CONNECT_STRING
 @&&WORKSPACE_ROOT/sql/01_create_stage_client_transfers.sql
 @&&WORKSPACE_ROOT/sql/02_create_external_client_transfers.sql
 @&&WORKSPACE_ROOT/sql/06_create_core_client_transfers.sql
+@&&WORKSPACE_ROOT/sql/10_create_control_structures.sql
 @&&WORKSPACE_ROOT/sql/04_create_load_procedure.sql
 @&&WORKSPACE_ROOT/sql/05_create_scheduler_job.sql
 
