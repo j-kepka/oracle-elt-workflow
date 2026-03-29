@@ -1,14 +1,23 @@
 -- Creates a procedure that reloads stage and core data from a dated external file snapshot
 
 CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
-  p_date IN DATE DEFAULT TRUNC(SYSDATE)
+  p_date     IN DATE DEFAULT TRUNC(SYSDATE),
+  p_run_mode IN VARCHAR2 DEFAULT 'MANUAL'
 ) AS
-  c_ext_dir            CONSTANT VARCHAR2(30 CHAR) := 'EXT_DIR';
-  l_business_date      DATE := TRUNC(p_date);
-  l_snapshot_file      VARCHAR2(128 CHAR);
-  l_stage_rows_loaded  NUMBER := 0;
+  c_process_name      CONSTANT VARCHAR2(100 CHAR) := 'LOAD_CLIENT_TRANSFERS';
+  c_ext_dir           CONSTANT VARCHAR2(30 CHAR) := 'EXT_DIR';
+  l_business_date     DATE := TRUNC(p_date);
+  l_run_mode          VARCHAR2(10 CHAR) := UPPER(TRIM(p_run_mode));
+  l_snapshot_file     VARCHAR2(128 CHAR);
+  l_ready_file        VARCHAR2(128 CHAR);
+  l_expected_rows     NUMBER := 0;
+  l_stage_rows_loaded NUMBER := 0;
   l_reject_rows_loaded NUMBER := 0;
-  l_core_rows_loaded   NUMBER := 0;
+  l_core_rows_loaded  NUMBER := 0;
+  l_attempt_ts        TIMESTAMP := SYSTIMESTAMP;
+  l_cutoff_ts         TIMESTAMP;
+  l_next_retry_ts     TIMESTAMP;
+  l_final_status_set  BOOLEAN := FALSE;
 
   PROCEDURE assert_file_exists (
     p_directory     IN VARCHAR2,
@@ -32,14 +41,305 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
       RAISE_APPLICATION_ERROR(p_error_code, p_error_message);
     END IF;
   END assert_file_exists;
+
+  FUNCTION read_expected_rows (
+    p_directory IN VARCHAR2,
+    p_filename  IN VARCHAR2
+  ) RETURN NUMBER AS
+    l_ok_file       UTL_FILE.FILE_TYPE;
+    l_ok_line       VARCHAR2(32767 CHAR);
+    l_expected_rows NUMBER := 0;
+  BEGIN
+    l_ok_file := UTL_FILE.FOPEN(
+      location  => p_directory,
+      filename  => p_filename,
+      open_mode => 'R'
+    );
+
+    BEGIN
+      UTL_FILE.GET_LINE(l_ok_file, l_ok_line);
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        UTL_FILE.FCLOSE(l_ok_file);
+        RAISE_APPLICATION_ERROR(
+          -20011,
+          'Ready file ' || p_filename || ' is empty.'
+        );
+    END;
+
+    UTL_FILE.FCLOSE(l_ok_file);
+
+    IF NOT REGEXP_LIKE(TRIM(l_ok_line), '^[0-9]+$') THEN
+      RAISE_APPLICATION_ERROR(
+        -20012,
+        'Ready file ' || p_filename || ' must contain a single non-negative integer row count.'
+      );
+    END IF;
+
+    l_expected_rows := TO_NUMBER(TRIM(l_ok_line));
+    RETURN l_expected_rows;
+  EXCEPTION
+    WHEN UTL_FILE.INVALID_PATH
+      OR UTL_FILE.INVALID_MODE
+      OR UTL_FILE.INVALID_OPERATION
+      OR UTL_FILE.READ_ERROR
+      OR UTL_FILE.INTERNAL_ERROR THEN
+      IF UTL_FILE.IS_OPEN(l_ok_file) THEN
+        UTL_FILE.FCLOSE(l_ok_file);
+      END IF;
+
+      RAISE_APPLICATION_ERROR(
+        -20013,
+        'Unable to read ready file ' || p_filename || ': ' || SQLERRM
+      );
+  END read_expected_rows;
+
+  PROCEDURE upsert_process_run (
+    p_status             IN VARCHAR2,
+    p_reason_code        IN VARCHAR2,
+    p_status_message     IN VARCHAR2,
+    p_expected_row_count IN NUMBER,
+    p_stage_row_count    IN NUMBER,
+    p_reject_row_count   IN NUMBER,
+    p_core_row_count     IN NUMBER,
+    p_started_ts         IN TIMESTAMP,
+    p_finished_ts        IN TIMESTAMP,
+    p_next_retry_ts      IN TIMESTAMP,
+    p_retry_count_delta  IN NUMBER DEFAULT 0
+  ) AS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  BEGIN
+    MERGE INTO dwh.ctl_process_run dst
+    USING (
+      SELECT
+        c_process_name AS process_name,
+        l_business_date AS business_date
+      FROM dual
+    ) src
+    ON (
+      dst.process_name = src.process_name
+      AND dst.business_date = src.business_date
+    )
+    WHEN MATCHED THEN
+      UPDATE SET
+        dst.run_mode = l_run_mode,
+        dst.status = p_status,
+        dst.reason_code = p_reason_code,
+        dst.retry_count = GREATEST(0, NVL(dst.retry_count, 0) + NVL(p_retry_count_delta, 0)),
+        dst.scheduled_for_ts = NVL(dst.scheduled_for_ts, l_attempt_ts),
+        dst.next_retry_ts = p_next_retry_ts,
+        dst.started_ts = p_started_ts,
+        dst.finished_ts = p_finished_ts,
+        dst.expected_row_count = p_expected_row_count,
+        dst.stage_row_count = p_stage_row_count,
+        dst.reject_row_count = p_reject_row_count,
+        dst.core_row_count = p_core_row_count,
+        dst.data_file_name = l_snapshot_file,
+        dst.ready_file_name = l_ready_file,
+        dst.status_message = p_status_message,
+        dst.updated_ts = SYSTIMESTAMP
+    WHEN NOT MATCHED THEN
+      INSERT (
+        process_name,
+        business_date,
+        run_mode,
+        status,
+        reason_code,
+        retry_count,
+        scheduled_for_ts,
+        next_retry_ts,
+        started_ts,
+        finished_ts,
+        expected_row_count,
+        stage_row_count,
+        reject_row_count,
+        core_row_count,
+        data_file_name,
+        ready_file_name,
+        status_message,
+        created_ts,
+        updated_ts
+      )
+      VALUES (
+        c_process_name,
+        l_business_date,
+        l_run_mode,
+        p_status,
+        p_reason_code,
+        GREATEST(0, NVL(p_retry_count_delta, 0)),
+        l_attempt_ts,
+        p_next_retry_ts,
+        p_started_ts,
+        p_finished_ts,
+        p_expected_row_count,
+        p_stage_row_count,
+        p_reject_row_count,
+        p_core_row_count,
+        l_snapshot_file,
+        l_ready_file,
+        p_status_message,
+        SYSTIMESTAMP,
+        SYSTIMESTAMP
+      );
+
+    COMMIT;
+  END upsert_process_run;
 BEGIN
   l_snapshot_file := 'client_transfers_' || TO_CHAR(l_business_date, 'YYYYMMDD') || '.csv';
+  l_ready_file := 'client_transfers_' || TO_CHAR(l_business_date, 'YYYYMMDD') || '.ok';
+  l_cutoff_ts := CAST(l_business_date AS TIMESTAMP) + NUMTODSINTERVAL(12, 'HOUR');
 
-  assert_file_exists(
-    p_directory     => c_ext_dir,
-    p_filename      => l_snapshot_file,
-    p_error_code    => -20010,
-    p_error_message => 'Data file ' || l_snapshot_file || ' not found.'
+  IF l_run_mode NOT IN ('AUTO', 'MANUAL') THEN
+    RAISE_APPLICATION_ERROR(
+      -20016,
+      'Unsupported run mode ' || NVL(p_run_mode, '<NULL>') || '. Expected AUTO or MANUAL.'
+    );
+  END IF;
+
+  upsert_process_run(
+    p_status             => 'PROCESSING',
+    p_reason_code        => NULL,
+    p_status_message     => 'Load attempt started.',
+    p_expected_row_count => NULL,
+    p_stage_row_count    => 0,
+    p_reject_row_count   => 0,
+    p_core_row_count     => 0,
+    p_started_ts         => l_attempt_ts,
+    p_finished_ts        => NULL,
+    p_next_retry_ts      => NULL
+  );
+
+  BEGIN
+    assert_file_exists(
+      p_directory     => c_ext_dir,
+      p_filename      => l_ready_file,
+      p_error_code    => -20010,
+      p_error_message => 'Ready file ' || l_ready_file || ' not found.'
+    );
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLCODE = -20010 THEN
+        IF l_run_mode = 'AUTO' AND l_attempt_ts < l_cutoff_ts THEN
+          IF l_attempt_ts + NUMTODSINTERVAL(30, 'MINUTE') < l_cutoff_ts THEN
+            l_next_retry_ts := l_attempt_ts + NUMTODSINTERVAL(30, 'MINUTE');
+          ELSE
+            l_next_retry_ts := l_cutoff_ts;
+          END IF;
+
+          upsert_process_run(
+            p_status             => 'WAITING',
+            p_reason_code        => 'WAITING_FOR_OK',
+            p_status_message     => 'Ready file not available before cutoff. Waiting for retry.',
+            p_expected_row_count => NULL,
+            p_stage_row_count    => 0,
+            p_reject_row_count   => 0,
+            p_core_row_count     => 0,
+            p_started_ts         => l_attempt_ts,
+            p_finished_ts        => SYSTIMESTAMP,
+            p_next_retry_ts      => l_next_retry_ts,
+            p_retry_count_delta  => 1
+          );
+
+          l_final_status_set := TRUE;
+
+          DBMS_OUTPUT.PUT_LINE(
+            'dwh.prc_load_client_transfers business_date='
+            || TO_CHAR(l_business_date, 'YYYY-MM-DD')
+            || ', status=WAITING'
+            || ', reason=WAITING_FOR_OK'
+            || ', next_retry_ts='
+            || TO_CHAR(l_next_retry_ts, 'YYYY-MM-DD HH24:MI:SS')
+          );
+
+          RETURN;
+        END IF;
+
+        upsert_process_run(
+          p_status             => 'FAILED',
+          p_reason_code        => CASE
+                                    WHEN l_run_mode = 'MANUAL' THEN 'MISSING_OK_MANUAL'
+                                    ELSE 'MISSING_OK_AFTER_CUTOFF'
+                                  END,
+          p_status_message     => SQLERRM,
+          p_expected_row_count => NULL,
+          p_stage_row_count    => 0,
+          p_reject_row_count   => 0,
+          p_core_row_count     => 0,
+          p_started_ts         => l_attempt_ts,
+          p_finished_ts        => SYSTIMESTAMP,
+          p_next_retry_ts      => NULL
+        );
+
+        l_final_status_set := TRUE;
+      END IF;
+
+      RAISE;
+  END;
+
+  BEGIN
+    l_expected_rows := read_expected_rows(
+      p_directory => c_ext_dir,
+      p_filename  => l_ready_file
+    );
+  EXCEPTION
+    WHEN OTHERS THEN
+      upsert_process_run(
+        p_status             => 'FAILED',
+        p_reason_code        => CASE
+                                  WHEN SQLCODE IN (-20011, -20012) THEN 'INVALID_OK_CONTENT'
+                                  ELSE 'READY_FILE_READ_ERROR'
+                                END,
+        p_status_message     => SQLERRM,
+        p_expected_row_count => NULL,
+        p_stage_row_count    => 0,
+        p_reject_row_count   => 0,
+        p_core_row_count     => 0,
+        p_started_ts         => l_attempt_ts,
+        p_finished_ts        => SYSTIMESTAMP,
+        p_next_retry_ts      => NULL
+      );
+
+      l_final_status_set := TRUE;
+      RAISE;
+  END;
+
+  BEGIN
+    assert_file_exists(
+      p_directory     => c_ext_dir,
+      p_filename      => l_snapshot_file,
+      p_error_code    => -20014,
+      p_error_message => 'Data file ' || l_snapshot_file || ' not found although ready file exists.'
+    );
+  EXCEPTION
+    WHEN OTHERS THEN
+      upsert_process_run(
+        p_status             => 'FAILED',
+        p_reason_code        => 'MISSING_DATA_FILE',
+        p_status_message     => SQLERRM,
+        p_expected_row_count => l_expected_rows,
+        p_stage_row_count    => 0,
+        p_reject_row_count   => 0,
+        p_core_row_count     => 0,
+        p_started_ts         => l_attempt_ts,
+        p_finished_ts        => SYSTIMESTAMP,
+        p_next_retry_ts      => NULL
+      );
+
+      l_final_status_set := TRUE;
+      RAISE;
+  END;
+
+  upsert_process_run(
+    p_status             => 'PROCESSING',
+    p_reason_code        => NULL,
+    p_status_message     => 'Validated ready file. Loading stage and reject candidates.',
+    p_expected_row_count => l_expected_rows,
+    p_stage_row_count    => 0,
+    p_reject_row_count   => 0,
+    p_core_row_count     => 0,
+    p_started_ts         => l_attempt_ts,
+    p_finished_ts        => NULL,
+    p_next_retry_ts      => NULL
   );
 
   EXECUTE IMMEDIATE
@@ -140,6 +440,7 @@ BEGIN
 
   INSERT INTO dwh.stg_client_transfers_reject (
     business_date,
+    source_file_name,
     source_row_num,
     transfer_id_raw,
     client_id_raw,
@@ -191,6 +492,7 @@ BEGIN
   )
   SELECT
     business_date,
+    l_snapshot_file AS source_file_name,
     source_row_num,
     transfer_id_raw,
     client_id_raw,
@@ -261,6 +563,45 @@ BEGIN
 
   l_reject_rows_loaded := SQL%ROWCOUNT;
 
+  IF l_expected_rows != l_stage_rows_loaded + l_reject_rows_loaded THEN
+    upsert_process_run(
+      p_status             => 'FAILED',
+      p_reason_code        => 'OK_COUNT_MISMATCH',
+      p_status_message     => 'Ready file row count mismatch.',
+      p_expected_row_count => l_expected_rows,
+      p_stage_row_count    => l_stage_rows_loaded,
+      p_reject_row_count   => l_reject_rows_loaded,
+      p_core_row_count     => 0,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => SYSTIMESTAMP,
+      p_next_retry_ts      => NULL
+    );
+
+    l_final_status_set := TRUE;
+
+    RAISE_APPLICATION_ERROR(
+      -20015,
+      'Ready file row count mismatch. Expected '
+      || l_expected_rows
+      || ' rows but got '
+      || (l_stage_rows_loaded + l_reject_rows_loaded)
+      || '.'
+    );
+  END IF;
+
+  upsert_process_run(
+    p_status             => 'PROCESSING',
+    p_reason_code        => NULL,
+    p_status_message     => 'Validated row counts. Refreshing core.',
+    p_expected_row_count => l_expected_rows,
+    p_stage_row_count    => l_stage_rows_loaded,
+    p_reject_row_count   => l_reject_rows_loaded,
+    p_core_row_count     => 0,
+    p_started_ts         => l_attempt_ts,
+    p_finished_ts        => NULL,
+    p_next_retry_ts      => NULL
+  );
+
   DELETE FROM dwh.core_client_transfers
   WHERE business_date = l_business_date;
 
@@ -295,21 +636,92 @@ BEGIN
   l_core_rows_loaded := SQL%ROWCOUNT;
   COMMIT;
 
-  DBMS_OUTPUT.PUT_LINE(
-    'dwh.prc_load_client_transfers business_date='
-    || TO_CHAR(l_business_date, 'YYYY-MM-DD')
-    || ', file='
-    || l_snapshot_file
-    || ', stage='
-    || l_stage_rows_loaded
-    || ', reject='
-    || l_reject_rows_loaded
-    || ', core='
-    || l_core_rows_loaded
-  );
+  IF l_reject_rows_loaded > 0 THEN
+    upsert_process_run(
+      p_status             => 'WARNING',
+      p_reason_code        => 'INPUT_VALIDATION_WARNING',
+      p_status_message     => 'Load completed with rejected input rows.',
+      p_expected_row_count => l_expected_rows,
+      p_stage_row_count    => l_stage_rows_loaded,
+      p_reject_row_count   => l_reject_rows_loaded,
+      p_core_row_count     => l_core_rows_loaded,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => SYSTIMESTAMP,
+      p_next_retry_ts      => NULL
+    );
+
+    l_final_status_set := TRUE;
+
+    DBMS_OUTPUT.PUT_LINE(
+      'dwh.prc_load_client_transfers business_date='
+      || TO_CHAR(l_business_date, 'YYYY-MM-DD')
+      || ', status=WARNING'
+      || ', file='
+      || l_snapshot_file
+      || ', ok='
+      || l_ready_file
+      || ', expected='
+      || l_expected_rows
+      || ', stage='
+      || l_stage_rows_loaded
+      || ', reject='
+      || l_reject_rows_loaded
+      || ', core='
+      || l_core_rows_loaded
+    );
+  ELSE
+    upsert_process_run(
+      p_status             => 'DONE',
+      p_reason_code        => 'LOAD_DONE',
+      p_status_message     => 'Load completed successfully.',
+      p_expected_row_count => l_expected_rows,
+      p_stage_row_count    => l_stage_rows_loaded,
+      p_reject_row_count   => l_reject_rows_loaded,
+      p_core_row_count     => l_core_rows_loaded,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => SYSTIMESTAMP,
+      p_next_retry_ts      => NULL
+    );
+
+    l_final_status_set := TRUE;
+
+    DBMS_OUTPUT.PUT_LINE(
+      'dwh.prc_load_client_transfers business_date='
+      || TO_CHAR(l_business_date, 'YYYY-MM-DD')
+      || ', status=DONE'
+      || ', file='
+      || l_snapshot_file
+      || ', ok='
+      || l_ready_file
+      || ', expected='
+      || l_expected_rows
+      || ', stage='
+      || l_stage_rows_loaded
+      || ', reject='
+      || l_reject_rows_loaded
+      || ', core='
+      || l_core_rows_loaded
+    );
+  END IF;
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
+
+    IF NOT l_final_status_set THEN
+      upsert_process_run(
+        p_status             => 'FAILED',
+        p_reason_code        => 'UNEXPECTED_ERROR',
+        p_status_message     => SQLERRM,
+        p_expected_row_count => l_expected_rows,
+        p_stage_row_count    => l_stage_rows_loaded,
+        p_reject_row_count   => l_reject_rows_loaded,
+        p_core_row_count     => l_core_rows_loaded,
+        p_started_ts         => l_attempt_ts,
+        p_finished_ts        => SYSTIMESTAMP,
+        p_next_retry_ts      => NULL
+      );
+    END IF;
+
     RAISE;
 END;
 /

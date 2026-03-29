@@ -10,5 +10,6 @@ CREATE TABLE dwh.core_client_transfers (
   transfer_ts      TIMESTAMP         NOT NULL,
   transfer_status  VARCHAR2(20 CHAR) NOT NULL,
   channel          VARCHAR2(20 CHAR) NOT NULL,
-  country_code     CHAR(2 CHAR)      NOT NULL
+  country_code     CHAR(2 CHAR)      NOT NULL,
+  CONSTRAINT pk_core_client_transfers PRIMARY KEY (business_date, transfer_id)
 );

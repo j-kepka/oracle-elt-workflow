@@ -17,6 +17,7 @@ CREATE TABLE dwh.stg_client_transfers (
 -- Reject table for invalid records detected during raw-to-stage validation
 CREATE TABLE dwh.stg_client_transfers_reject (
   business_date        DATE                NOT NULL,
+  source_file_name     VARCHAR2(255 CHAR)  NOT NULL,
   source_row_num       NUMBER(10)          NOT NULL,
   transfer_id_raw      VARCHAR2(100 CHAR),
   client_id_raw        VARCHAR2(100 CHAR),
