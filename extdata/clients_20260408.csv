@@ -1,0 +1,2 @@
+business_date;client_id;client_type;full_name;first_name;last_name;company_name;date_of_birth;registration_no;address_line_1;city;postal_code;country_code;pep_flag;high_risk_flag;client_status;document_id;tax_id;phone_number;email;kyc_status;risk_score
+2026-04-08;8801;PRIVATE;Manual Missing Ok;Manual;Missing;;1990-08-08;;8 Retry Street;Warsaw;00-808;PL;0;0;ACTIVE;XD-MANUAL-8801;TX-MANUAL-8801;+9998000001;manual.missing.ok.8801@demo-no-match.invalid;REVIEW;120

@@ -1,4 +1,6 @@
 -- Stage table for validated client transfer records loaded from dated CSV snapshots
+-- source_row_num keeps the physical CSV line number from ORACLE_LOADER RECNUM.
+-- With SKIP 1, the header stays line 1 and the first data row becomes line 2.
 CREATE TABLE dwh.stg_client_transfers (
   business_date     DATE              NOT NULL,
   source_row_num    NUMBER(10)        NOT NULL,

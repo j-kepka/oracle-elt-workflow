@@ -4,6 +4,47 @@
 SET SERVEROUTPUT ON;
 
 DECLARE
+  l_user_exists      NUMBER := 0;
+  l_sessions_killed NUMBER := 0;
+BEGIN
+  SELECT COUNT(*)
+  INTO l_user_exists
+  FROM dba_users
+  WHERE username = 'DWH';
+
+  IF l_user_exists = 1 THEN
+    EXECUTE IMMEDIATE 'ALTER USER dwh ACCOUNT LOCK';
+    DBMS_OUTPUT.PUT_LINE('Locked user DWH before session cleanup.');
+  END IF;
+
+  FOR rec IN (
+    SELECT sid, serial#
+    FROM v$session
+    WHERE username = 'DWH'
+      AND type <> 'BACKGROUND'
+  ) LOOP
+    EXECUTE IMMEDIATE
+      'ALTER SYSTEM KILL SESSION '''
+      || rec.sid
+      || ','
+      || rec.serial#
+      || ''' IMMEDIATE';
+    l_sessions_killed := l_sessions_killed + 1;
+  END LOOP;
+
+  IF l_sessions_killed > 0 THEN
+    DBMS_OUTPUT.PUT_LINE('Killed ' || l_sessions_killed || ' active DWH session(s).');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('No active DWH sessions found.');
+  END IF;
+
+  IF l_sessions_killed > 0 THEN
+    DBMS_LOCK.SLEEP(1);
+  END IF;
+END;
+/
+
+DECLARE
   l_user_exists NUMBER := 0;
 BEGIN
   SELECT COUNT(*)

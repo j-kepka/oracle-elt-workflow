@@ -1,4 +1,5 @@
 -- External table mapped to a dated file in extdata, for example client_transfers_20260326.csv
+-- RECNUM keeps the physical file line number, so the first data row is 2 when SKIP 1 is used.
 -- Loader failures are treated as technical errors and must stop the run immediately.
 -- Prerequisite (run as SYSTEM once):
 --   CREATE OR REPLACE DIRECTORY EXT_DIR AS '/opt/oracle/extdata';
@@ -38,7 +39,7 @@ ORGANIZATION EXTERNAL (
     BADFILE EXT_WORK_DIR:'ext_client_transfers.bad'
     DISCARDFILE EXT_WORK_DIR:'ext_client_transfers.dsc'
     SKIP 1
-    FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+    FIELDS TERMINATED BY ';' OPTIONALLY ENCLOSED BY '"'
     MISSING FIELD VALUES ARE NULL
     (
       source_row_num RECNUM,

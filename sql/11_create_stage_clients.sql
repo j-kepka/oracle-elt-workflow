@@ -1,0 +1,61 @@
+-- Stage table for validated client snapshot records loaded from dated CSV snapshots
+-- source_row_num keeps the physical CSV line number from ORACLE_LOADER RECNUM.
+-- With SKIP 1, the header stays line 1 and the first data row becomes line 2.
+CREATE TABLE dwh.stg_clients (
+  business_date    DATE               NOT NULL,
+  source_row_num   NUMBER(10)         NOT NULL,
+  client_id        NUMBER(10)         NOT NULL,
+  client_type      VARCHAR2(20 CHAR)  NOT NULL,
+  full_name        VARCHAR2(200 CHAR) NOT NULL,
+  first_name       VARCHAR2(100 CHAR),
+  last_name        VARCHAR2(100 CHAR),
+  company_name     VARCHAR2(200 CHAR),
+  date_of_birth    DATE,
+  document_id      VARCHAR2(100 CHAR),
+  registration_no  VARCHAR2(50 CHAR),
+  tax_id           VARCHAR2(100 CHAR),
+  address_line_1   VARCHAR2(200 CHAR) NOT NULL,
+  city             VARCHAR2(100 CHAR) NOT NULL,
+  postal_code      VARCHAR2(20 CHAR)  NOT NULL,
+  country_code     CHAR(2 CHAR)       NOT NULL,
+  phone_number     VARCHAR2(50 CHAR),
+  email            VARCHAR2(255 CHAR),
+  pep_flag         NUMBER(1)          NOT NULL,
+  high_risk_flag   NUMBER(1)          NOT NULL,
+  kyc_status       VARCHAR2(30 CHAR),
+  risk_score       NUMBER(4),
+  client_status    VARCHAR2(20 CHAR)  NOT NULL,
+  CONSTRAINT chk_stg_clients_status CHECK (client_status IN ('ACTIVE', 'ARCHIVED')),
+  CONSTRAINT chk_stg_clients_risk_score CHECK (risk_score IS NULL OR risk_score BETWEEN 0 AND 999)
+);
+
+-- Reject table for invalid client records detected during raw-to-stage validation
+CREATE TABLE dwh.stg_clients_reject (
+  business_date          DATE                NOT NULL,
+  source_file_name       VARCHAR2(255 CHAR)  NOT NULL,
+  source_row_num         NUMBER(10)          NOT NULL,
+  business_date_raw      VARCHAR2(100 CHAR),
+  client_id_raw          VARCHAR2(100 CHAR),
+  client_type_raw        VARCHAR2(100 CHAR),
+  full_name_raw          VARCHAR2(255 CHAR),
+  first_name_raw         VARCHAR2(255 CHAR),
+  last_name_raw          VARCHAR2(255 CHAR),
+  company_name_raw       VARCHAR2(255 CHAR),
+  date_of_birth_raw      VARCHAR2(100 CHAR),
+  document_id_raw        VARCHAR2(255 CHAR),
+  registration_no_raw    VARCHAR2(100 CHAR),
+  tax_id_raw             VARCHAR2(255 CHAR),
+  address_line_1_raw     VARCHAR2(255 CHAR),
+  city_raw               VARCHAR2(255 CHAR),
+  postal_code_raw        VARCHAR2(100 CHAR),
+  country_code_raw       VARCHAR2(100 CHAR),
+  phone_number_raw       VARCHAR2(100 CHAR),
+  email_raw              VARCHAR2(255 CHAR),
+  pep_flag_raw           VARCHAR2(100 CHAR),
+  high_risk_flag_raw     VARCHAR2(100 CHAR),
+  kyc_status_raw         VARCHAR2(100 CHAR),
+  risk_score_raw         VARCHAR2(100 CHAR),
+  client_status_raw      VARCHAR2(100 CHAR),
+  reject_reason          VARCHAR2(4000 CHAR) NOT NULL,
+  rejected_at            TIMESTAMP           DEFAULT SYSTIMESTAMP NOT NULL
+);
