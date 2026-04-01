@@ -118,6 +118,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-26';
 
+/*
 SELECT
   business_date,
   source_row_num,
@@ -132,7 +133,7 @@ FROM dwh.stg_client_transfers
 WHERE business_date = DATE '2026-03-26'
 ORDER BY source_row_num
 FETCH FIRST 10 ROWS ONLY;
-
+*/
 PROMPT
 PROMPT Load business_date 2026-03-25
 PROMPT Expected result: status=WARNING, stage=5, reject=7, core=5
@@ -170,6 +171,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-25';
 
+/*
 SELECT
   business_date,
   source_row_num,
@@ -199,7 +201,7 @@ SELECT
 FROM dwh.stg_client_transfers_reject
 WHERE business_date = DATE '2026-03-25'
 ORDER BY source_row_num;
-
+*/
 PROMPT
 PROMPT Load business_date 2026-03-27
 PROMPT Expected result: ORA-20015, status=FAILED, reason_code=OK_COUNT_MISMATCH
@@ -229,7 +231,6 @@ SELECT
 FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-27';
-
 PROMPT
 PROMPT Load business_date 2026-03-28
 PROMPT Expected result: status=WARNING, stage=0, reject=2, core=0
@@ -267,6 +268,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-28';
 
+/*
 SELECT
   business_date,
   source_file_name,
@@ -277,7 +279,7 @@ SELECT
 FROM dwh.stg_client_transfers_reject
 WHERE business_date = DATE '2026-03-28'
 ORDER BY source_row_num;
-
+*/
 PROMPT
 PROMPT Load business_date 2026-03-24
 PROMPT Expected result: ORA-20014, status=FAILED, reason_code=MISSING_DATA_FILE
@@ -307,7 +309,6 @@ SELECT
 FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-24';
-
 PROMPT
 PROMPT Rerun business_date 2026-03-26
 PROMPT Expected result: status=DONE, stage=20, reject=0, core=20 again (no growth across rerun)
@@ -344,7 +345,6 @@ SELECT
 FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-26';
-
 PROMPT
 PROMPT Rerun business_date 2026-03-25
 PROMPT Expected result: status=WARNING, stage=5, reject=7, core=5 again (no growth across rerun)
@@ -381,7 +381,6 @@ SELECT
 FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-03-25';
-
 PROMPT
 PROMPT Optional AUTO status review for 2026-04-07
 PROMPT Expected result before 2026-04-07 12:00 DB time: status=WAITING, reason_code=WAITING_FOR_OK

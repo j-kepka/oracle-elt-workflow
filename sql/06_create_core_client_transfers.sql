@@ -18,3 +18,7 @@ CREATE TABLE dwh.core_client_transfers (
     REFERENCES dwh.core_clients (business_date, client_id)
     DEFERRABLE INITIALLY IMMEDIATE
 );
+
+-- Supports FK checks and parent refreshes on core_clients(business_date, client_id).
+CREATE INDEX dwh.ix_core_client_transfers_bd_client
+  ON dwh.core_client_transfers (business_date, client_id);

@@ -82,33 +82,41 @@ Current grants, filesystem permissions, and scheduler setup are intentionally si
 
 1. Start Oracle Free with the local startup helper:
 ```bash
-cd /home/kempez/projects/oracle-elt-workflow
-chmod +x ops/00_start_oracle_container.sh
-ORACLE_PASSWORD='<ORACLE_PASSWORD>' ./ops/00_start_oracle_container.sh
+cd <PROJECT_PATH>
+ORACLE_PASSWORD='<ORACLE_PASSWORD>' bash ops/00_start_oracle_container.sh
 ```
 
+Run from the repository root on the host.
+`<PROJECT_PATH>` is the local path where you cloned this repository, for example:
+- Linux / WSL: `/home/<user>/projects/oracle-elt-workflow`
+- macOS: `/Users/<user>/projects/oracle-elt-workflow`
+
+Current setup has been exercised on Linux-style environments.
+It has not been validated on native Windows hosts yet.
+
 Current startup defaults:
-- container name: `oracle-free`
-- volume: `oracle-data`
+- container name: `j-kepka-oracle-elt-workflow`
+- volume: `j-kepka-oracle-elt-workflow-data`
 - timezone: `Europe/Berlin`
 
-Optional overrides:
+Optional per-run overrides (inline environment variables):
+these values apply only to this single command invocation.
 ```bash
 ORACLE_PASSWORD='<ORACLE_PASSWORD>' \
-ORACLE_TZ='Europe/Berlin' \
-ORACLE_CONTAINER_NAME='oracle-free' \
-ORACLE_VOLUME_NAME='oracle-data' \
+ORACLE_TZ='<REGION/CITY>' \
+ORACLE_CONTAINER_NAME='<CONTAINER_NAME>' \
+ORACLE_VOLUME_NAME='<VOLUME_NAME>' \
 ./ops/00_start_oracle_container.sh
 ```
 
 2. Check logs:
 ```bash
-docker logs -f oracle-free
+docker logs -f j-kepka-oracle-elt-workflow
 ```
 
 3. Bootstrap the project schema:
 ```bash
-docker exec -it oracle-free bash
+docker exec -it j-kepka-oracle-elt-workflow bash
 sqlplus / as sysdba
 ```
 
@@ -121,12 +129,14 @@ DEFINE DWH_PASSWORD = <DWH_PASSWORD>
 @/workspace/tests/sql/10_bootstrap_project_schema.sql
 ```
 
-4. Follow the permissions step from `tests/SMOKE_TEST_RUNBOOK.md`, then run the manual smoke reviews:
+4. Follow the permissions step from `tests/SMOKE_TEST_RUNBOOK.md`, then run the manual smoke reviews.
+   Run the client helper first, because it clears transfer `core` rows for overlapping dates:
 ```sql
 CONNECT dwh/"<DWH_PASSWORD>"@//localhost:1521/FREEPDB1
 ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
-@/workspace/tests/sql/90_manual_review_phase03.sql
 @/workspace/tests/sql/91_manual_review_clients.sql
+@/workspace/tests/sql/90_manual_review_phase03.sql
+@/workspace/tests/sql/92_manual_review_extended_cases.sql
 ```
 
 More details:
@@ -169,4 +179,6 @@ More details:
 - Duplicate business keys in a single snapshot are treated as input rejects before the `core` refresh for both `clients` and `client_transfers`.
 - The rest of the wider AML client contract remains intentionally omitted in this demo project until later phases.
 - `.ok` contains the count of data rows only, without the CSV header.
+- `.ok` validation currently checks only the first line for a non-negative integer; strict single-line enforcement is planned as a later hardening task (`Phase-08+`).
 - The procedures support `AUTO` status handling (`WAITING` before the cutoff, `FAILED` after the cutoff), but the bundled scheduler does not yet re-drive `WAITING` rows from `next_retry_ts`.
+- External-table `LOCATION` is switched on shared objects (`ext_clients`, `ext_client_transfers`) per run; safe concurrent loads for the same dataset are planned as a later hardening task (`Phase-08+`).

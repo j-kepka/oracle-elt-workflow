@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-ORACLE_CONTAINER_NAME="${ORACLE_CONTAINER_NAME:-oracle-free}"
-ORACLE_VOLUME_NAME="${ORACLE_VOLUME_NAME:-oracle-data}"
+ORACLE_CONTAINER_NAME="${ORACLE_CONTAINER_NAME:-j-kepka-oracle-elt-workflow}"
+ORACLE_VOLUME_NAME="${ORACLE_VOLUME_NAME:-j-kepka-oracle-elt-workflow-data}"
 ORACLE_IMAGE="${ORACLE_IMAGE:-gvenzl/oracle-free@sha256:62aad247879f5d4ca4a37ecc068ef6a5feb9e9bea789501b6a82d4814d14bbb3}"
 ORACLE_PASSWORD="${ORACLE_PASSWORD:-}"
 ORACLE_TZ="${ORACLE_TZ:-Europe/Berlin}"
@@ -18,7 +18,25 @@ if [[ -z "${ORACLE_PASSWORD}" ]]; then
 fi
 
 docker volume create "${ORACLE_VOLUME_NAME}" >/dev/null
-docker rm -f "${ORACLE_CONTAINER_NAME}" >/dev/null 2>&1 || true
+
+if docker container inspect "${ORACLE_CONTAINER_NAME}" >/dev/null 2>&1; then
+  if [[ ! -t 0 ]]; then
+    echo "WARNING: container ${ORACLE_CONTAINER_NAME} already exists." >&2
+    echo "Re-run this helper interactively to confirm its removal, or override ORACLE_CONTAINER_NAME." >&2
+    exit 1
+  fi
+
+  read -r -p "WARNING: remove existing container ${ORACLE_CONTAINER_NAME}? [y/N] " confirm
+  case "${confirm}" in
+    y|Y|yes|YES)
+      docker rm -f "${ORACLE_CONTAINER_NAME}" >/dev/null
+      ;;
+    *)
+      echo "Aborted. Existing container ${ORACLE_CONTAINER_NAME} was left untouched." >&2
+      exit 1
+      ;;
+  esac
+fi
 
 docker run -d --name "${ORACLE_CONTAINER_NAME}" \
   -p 127.0.0.1:1521:1521 \

@@ -116,6 +116,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENTS'
   AND business_date = DATE '2026-03-26';
 
+/*
 SELECT
   business_date,
   source_row_num,
@@ -148,6 +149,7 @@ FROM dwh.core_clients
 WHERE business_date = DATE '2026-03-26'
 ORDER BY client_id
 FETCH FIRST 10 ROWS ONLY;
+*/
 
 PROMPT
 PROMPT Load business_date 2026-03-25
@@ -186,6 +188,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENTS'
   AND business_date = DATE '2026-03-25';
 
+/*
 SELECT
   business_date,
   source_row_num,
@@ -227,6 +230,7 @@ SELECT
 FROM dwh.stg_clients_reject
 WHERE business_date = DATE '2026-03-25'
 ORDER BY source_row_num;
+*/
 
 PROMPT
 PROMPT Load business_date 2026-03-27
@@ -332,6 +336,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENTS'
   AND business_date = DATE '2026-03-29';
 
+/*
 SELECT
   business_date,
   source_file_name,
@@ -342,6 +347,7 @@ SELECT
 FROM dwh.stg_clients_reject
 WHERE business_date = DATE '2026-03-29'
 ORDER BY source_row_num;
+*/
 
 PROMPT
 PROMPT Load business_date 2026-03-24

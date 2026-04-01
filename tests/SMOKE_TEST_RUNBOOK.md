@@ -57,7 +57,7 @@ Current implementation does not yet support:
 ## Prerequisites
 
 - Docker is installed and usable by the current Linux user.
-- The repository is available on the host at `/home/kempez/projects/oracle-elt-workflow`.
+- The repository is available on the host in a local clone path chosen by the user.
 - Oracle image `gvenzl/oracle-free@sha256:62aad247879f5d4ca4a37ecc068ef6a5feb9e9bea789501b6a82d4814d14bbb3` is available locally or can be pulled.
 
 ## Test Data Disclaimer
@@ -78,11 +78,17 @@ Any production-like reuse should start with an independent security, infrastruct
 Run on the host:
 
 ```bash
-cd /home/kempez/projects/oracle-elt-workflow
-
-chmod +x ops/00_start_oracle_container.sh
-ORACLE_PASSWORD='<ORACLE_PASSWORD>' ./ops/00_start_oracle_container.sh
+cd <PROJECT_PATH>
+ORACLE_PASSWORD='<ORACLE_PASSWORD>' bash ops/00_start_oracle_container.sh
 ```
+
+Run from the repository root on the host.
+`<PROJECT_PATH>` is the local path where you cloned this repository, for example:
+- Linux / WSL: `/home/<user>/projects/oracle-elt-workflow`
+- macOS: `/Users/<user>/projects/oracle-elt-workflow`
+
+Current setup has been exercised on Linux-style environments.
+It has not been validated on native Windows hosts yet.
 
 Default startup config:
 - timezone: `Europe/Berlin`
@@ -97,7 +103,7 @@ ORACLE_PASSWORD='<ORACLE_PASSWORD>' ORACLE_TZ='Europe/Berlin' ./ops/00_start_ora
 Wait until the database is ready:
 
 ```bash
-docker logs -f oracle-free
+docker logs -f j-kepka-oracle-elt-workflow
 ```
 
 ## 2. Reset Project State
@@ -105,7 +111,7 @@ docker logs -f oracle-free
 Run:
 
 ```bash
-docker exec -it oracle-free bash
+docker exec -it j-kepka-oracle-elt-workflow bash
 sqlplus / as sysdba
 ```
 
@@ -139,10 +145,10 @@ It is not a production permission model; any non-sandbox use needs a separate se
 Run on the host:
 
 ```bash
-cd /home/kempez/projects/oracle-elt-workflow
+cd <PROJECT_PATH>
 
-ORACLE_UID=$(docker exec oracle-free id -u oracle)
-ORACLE_GID=$(docker exec oracle-free id -g oracle)
+ORACLE_UID=$(docker exec j-kepka-oracle-elt-workflow id -u oracle)
+ORACLE_GID=$(docker exec j-kepka-oracle-elt-workflow id -g oracle)
 
 sudo mkdir -p extdata/work
 sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/work
@@ -161,106 +167,99 @@ Expected result:
 Run on the host:
 
 ```bash
-cd /home/kempez/projects/oracle-elt-workflow
+cd <PROJECT_PATH>
 
+printf '\nCSV rows without header\n'
+for file in \
+  extdata/client_transfers_20260325.csv \
+  extdata/client_transfers_20260326.csv \
+  extdata/client_transfers_20260327.csv \
+  extdata/client_transfers_20260328.csv \
+  extdata/client_transfers_20260407.csv \
+  extdata/client_transfers_20260408.csv \
+  extdata/client_transfers_20260410.csv \
+  extdata/client_transfers_20260411.csv \
+  extdata/client_transfers_20260412.csv \
+  extdata/clients_20260325.csv \
+  extdata/clients_20260326.csv \
+  extdata/clients_20260327.csv \
+  extdata/clients_20260328.csv \
+  extdata/clients_20260329.csv \
+  extdata/clients_20260407.csv \
+  extdata/clients_20260408.csv \
+  extdata/clients_20260409.csv \
+  extdata/clients_20260410.csv
+do
+  printf '%-36s %3d\n' "$(basename "$file")" "$(( $(wc -l < "$file") - 1 ))"
+done
 
-#cat extdata/client_transfers_20260326.ok
-#cat extdata/client_transfers_20260325.ok
-#cat extdata/client_transfers_20260324.ok
-#cat extdata/client_transfers_20260327.ok
-#cat extdata/client_transfers_20260328.ok
-#sed -n '1,25p' extdata/client_transfers_20260326.csv
-#sed -n '1,20p' extdata/client_transfers_20260325.csv
-#sed -n '1,10p' extdata/client_transfers_20260327.csv
-#sed -n '1,10p' extdata/client_transfers_20260328.csv
-#sed -n '1,10p' extdata/client_transfers_20260407.csv
-#cat extdata/clients_20260326.ok
-#cat extdata/clients_20260325.ok
-#cat extdata/clients_20260324.ok
-#cat extdata/clients_20260327.ok
-#cat extdata/clients_20260328.ok
-#cat extdata/clients_20260329.ok
-#sed -n '1,20p' extdata/clients_20260326.csv
-#sed -n '1,20p' extdata/clients_20260325.csv
-#sed -n '1,10p' extdata/clients_20260327.csv
-#sed -n '1,10p' extdata/clients_20260328.csv
-#sed -n '1,10p' extdata/clients_20260329.csv
-#sed -n '1,10p' extdata/clients_20260407.csv
-#sed -n '1,10p' extdata/clients_20260408.csv
-#sed -n '1,15p' extdata/clients_20260409.csv
-#sed -n '1,10p' extdata/clients_20260410.csv
-#sed -n '1,10p' extdata/client_transfers_20260408.csv
-#sed -n '1,10p' extdata/client_transfers_20260410.csv
-#sed -n '1,10p' extdata/client_transfers_20260411.csv
-#sed -n '1,10p' extdata/client_transfers_20260412.csv
-expr $(wc -l < extdata/client_transfers_20260326.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260325.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260327.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260328.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260407.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260408.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260410.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260411.csv) - 1
-expr $(wc -l < extdata/client_transfers_20260412.csv) - 1
-expr $(wc -l < extdata/clients_20260326.csv) - 1
-expr $(wc -l < extdata/clients_20260325.csv) - 1
-expr $(wc -l < extdata/clients_20260327.csv) - 1
-expr $(wc -l < extdata/clients_20260328.csv) - 1
-expr $(wc -l < extdata/clients_20260329.csv) - 1
-expr $(wc -l < extdata/clients_20260407.csv) - 1
-expr $(wc -l < extdata/clients_20260408.csv) - 1
-expr $(wc -l < extdata/clients_20260409.csv) - 1
-expr $(wc -l < extdata/clients_20260410.csv) - 1
+printf '\nReady-file values\n'
+for file in \
+  extdata/client_transfers_20260324.ok \
+  extdata/client_transfers_20260325.ok \
+  extdata/client_transfers_20260326.ok \
+  extdata/client_transfers_20260327.ok \
+  extdata/client_transfers_20260328.ok \
+  extdata/client_transfers_20260410.ok \
+  extdata/client_transfers_20260411.ok \
+  extdata/client_transfers_20260412.ok \
+  extdata/clients_20260324.ok \
+  extdata/clients_20260325.ok \
+  extdata/clients_20260326.ok \
+  extdata/clients_20260327.ok \
+  extdata/clients_20260328.ok \
+  extdata/clients_20260329.ok \
+  extdata/clients_20260409.ok \
+  extdata/clients_20260410.ok
+do
+  printf '%-36s %s\n' "$(basename "$file")" "$(tr -d '\r\n' < "$file")"
+done
+
+printf '\nFiles expected to exist without a matching .ok\n'
+ls \
+  extdata/client_transfers_20260407.csv \
+  extdata/client_transfers_20260408.csv \
+  extdata/clients_20260407.csv \
+  extdata/clients_20260408.csv
 ```
 
+
 What to check:
-- line count without the header should be `20` for `client_transfers_20260326.csv`,
-- line count without the header should be `12` for `client_transfers_20260325.csv`,
-- `client_transfers_20260326.ok` contains `20`,
-- `client_transfers_20260325.ok` contains `12`,
-- `client_transfers_20260324.ok` exists even though the matching data file does not,
-- `client_transfers_20260327.ok` contains a value that does not match the data rows in `client_transfers_20260327.csv`,
-- line count without the header should be `2` for `client_transfers_20260328.csv`,
-- `client_transfers_20260328.ok` contains `2`,
-- `client_transfers_20260328.csv` contains two technically valid rows for the same `transfer_id`, so the smoke should reject both as duplicates,
-- `client_transfers_20260407.csv` exists without a matching `.ok`,
-- line count without the header should be `12` for `clients_20260326.csv`,
-- line count without the header should be `9` for `clients_20260325.csv`,
-- `clients_20260326.ok` contains `12`,
-- `clients_20260325.ok` contains `9`,
-- `clients_20260324.ok` exists even though the matching data file does not,
-- `clients_20260327.ok` contains a value that does not match the data rows in `clients_20260327.csv`,
-- line count without the header should be `2` for `clients_20260328.csv`,
-- `clients_20260328.ok` contains `2`,
-- `clients_20260328.csv` contains two valid parent clients used by the transfer duplicate-reject smoke,
-- line count without the header should be `2` for `clients_20260329.csv`,
-- `clients_20260329.ok` contains `2`,
-- `clients_20260329.csv` contains two technically valid rows for the same `client_id`, so the smoke should reject both as duplicates,
-- `clients_20260407.csv` exists without a matching `.ok`.
-- `clients_20260408.csv` exists without a matching `.ok`, for the deterministic `MANUAL` missing-ready-file smoke,
-- line count without the header should be `10` for `clients_20260409.csv`,
-- `clients_20260409.ok` contains `10`,
-- `clients_20260409.csv` mixes boundary values for `risk_score`, lowercase/spaced values that should normalize, invalid `phone_number` / `email`, unsupported `kyc_status`, and a semantic case where one invalid row shares `client_id` with one valid row,
-- line count without the header should be `2` for `clients_20260410.csv`,
-- `clients_20260410.ok` contains `2`,
-- `clients_20260410.csv` contains valid same-day parents for the transfer normalization smoke,
-- `client_transfers_20260408.csv` exists without a matching `.ok`, for the deterministic `MANUAL` missing-ready-file smoke,
-- line count without the header should be `2` for `client_transfers_20260410.csv`,
-- `client_transfers_20260410.ok` contains `2`,
-- `client_transfers_20260410.csv` contains lowercase/spaced `currency_code`, `transfer_status`, `channel`, and `country_code` values that should normalize in `stage/core`,
-- line count without the header should be `1` for `client_transfers_20260411.csv`,
-- `client_transfers_20260411.ok` contains `1`,
-- `client_transfers_20260411.csv` is technically valid, but no same-day `clients` snapshot should be loaded for it, so the transfer load should fail with `MISSING_CLIENT_SNAPSHOT`,
-- line count without the header should be `2` for `client_transfers_20260412.csv`,
-- `client_transfers_20260412.ok` contains `2`,
-- `client_transfers_20260412.csv` should drive two different reject reasons: `invalid country_code format` and `unsupported country_code`.
+
+Transfer baseline files:
+- `client_transfers_20260326.csv`: `20` data rows, `.ok=20`, happy-path transfer load.
+- `client_transfers_20260325.csv`: `12` data rows, `.ok=12`, later smoke should load `5` valid rows and reject `7`.
+- `client_transfers_20260324.ok`: exists even though the matching CSV does not.
+- `client_transfers_20260327.csv`: row count does not match `.ok`, used for `OK_COUNT_MISMATCH`.
+- `client_transfers_20260328.csv`: `2` data rows, `.ok=2`, both rows share the same technically valid `transfer_id`, so both should later be rejected as duplicates.
+
+Client baseline files:
+- `clients_20260326.csv`: `12` data rows, `.ok=12`, happy-path client load.
+- `clients_20260325.csv`: `9` data rows, `.ok=9`, later smoke should load `5` valid rows and reject `4`.
+- `clients_20260324.ok`: exists even though the matching CSV does not.
+- `clients_20260327.csv`: row count does not match `.ok`, used for `OK_COUNT_INCLUDES_HEADER`.
+- `clients_20260328.csv`: `2` data rows, `.ok=2`, valid same-day parent clients for the transfer duplicate-reject smoke.
+- `clients_20260329.csv`: `2` data rows, `.ok=2`, both rows share the same technically valid `client_id`, so both should later be rejected as duplicates.
+
+Extended client files:
+- `clients_20260407.csv`: exists without a matching `.ok`, used for `AUTO` waiting/cutoff review.
+- `clients_20260408.csv`: exists without a matching `.ok`, used for deterministic `MANUAL` missing-ready-file review.
+- `clients_20260409.csv`: `10` data rows, `.ok=10`, combines normalization, `risk_score` boundary values, invalid `phone_number` / `email`, unsupported `kyc_status`, and one semantic case where one invalid row shares `client_id` with one valid row.
+- `clients_20260410.csv`: `2` data rows, `.ok=2`, valid same-day parents for the transfer normalization smoke.
+
+Extended transfer files:
+- `client_transfers_20260407.csv`: exists without a matching `.ok`, used for `AUTO` waiting/cutoff review.
+- `client_transfers_20260408.csv`: exists without a matching `.ok`, used for deterministic `MANUAL` missing-ready-file review.
+- `client_transfers_20260410.csv`: `2` data rows, `.ok=2`, contains lowercase/spaced `currency_code`, `transfer_status`, `channel`, and `country_code` values that should normalize in `stage/core`.
+- `client_transfers_20260411.csv`: `1` data row, `.ok=1`, technically valid, but no same-day `clients` snapshot should be loaded for it, so the transfer load should fail with `MISSING_CLIENT_SNAPSHOT`.
+- `client_transfers_20260412.csv`: `2` data rows, `.ok=2`, should drive two different reject reasons: `invalid country_code format` and `unsupported country_code`.
 
 ## 6. Run Manual Smoke Review Helpers
 
 Run on the host:
 
 ```bash
-docker exec -it oracle-free bash
+docker exec -it j-kepka-oracle-elt-workflow bash
 sqlplus /nolog
 ```
 

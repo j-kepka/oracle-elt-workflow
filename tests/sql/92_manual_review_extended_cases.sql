@@ -121,6 +121,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENTS'
   AND business_date = DATE '2026-04-09';
 
+/*
 SELECT
   source_row_num,
   client_id,
@@ -155,6 +156,7 @@ SELECT
 FROM dwh.stg_clients_reject
 WHERE business_date = DATE '2026-04-09'
 ORDER BY source_row_num;
+*/
 
 PROMPT
 PROMPT Load clients business_date 2026-04-10
@@ -232,6 +234,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-04-10';
 
+/*
 SELECT
   source_row_num,
   transfer_id,
@@ -252,6 +255,7 @@ SELECT
 FROM dwh.core_client_transfers
 WHERE business_date = DATE '2026-04-10'
 ORDER BY transfer_id;
+*/
 
 PROMPT
 PROMPT Load clients business_date 2026-04-08 in MANUAL without .ok
@@ -389,6 +393,7 @@ FROM dwh.ctl_process_run
 WHERE process_name = 'LOAD_CLIENT_TRANSFERS'
   AND business_date = DATE '2026-04-12';
 
+/*
 SELECT
   source_row_num,
   transfer_id_raw,
@@ -397,3 +402,4 @@ SELECT
 FROM dwh.stg_client_transfers_reject
 WHERE business_date = DATE '2026-04-12'
 ORDER BY source_row_num;
+*/

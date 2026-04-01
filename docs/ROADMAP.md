@@ -28,7 +28,7 @@ Planned next inside MVP:
 - `Phase-07`: export/spool flow
 
 Optional within MVP:
-- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
+- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists, stricter `.ok` contract enforcement (exactly one line), and safer dataset-level concurrency for external-table `LOCATION` switching
 
 Optional after MVP:
 - `Phase-09`: richer ETL run logs and DQ observability
