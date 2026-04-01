@@ -14,6 +14,7 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   l_stage_rows_loaded NUMBER := 0;
   l_reject_rows_loaded NUMBER := 0;
   l_core_rows_loaded  NUMBER := 0;
+  l_missing_clients   NUMBER := 0;
   l_attempt_ts        TIMESTAMP := SYSTIMESTAMP;
   l_cutoff_ts         TIMESTAMP;
   l_next_retry_ts     TIMESTAMP;
@@ -400,6 +401,48 @@ BEGIN
         ELSE 0
       END AS is_supported_country
     FROM dwh.ext_client_transfers
+  ),
+  valid_data AS (
+    SELECT
+      business_date,
+      source_row_num,
+      transfer_id_raw,
+      client_id_raw,
+      source_account_raw,
+      target_account_raw,
+      amount_raw,
+      currency_code_raw,
+      transfer_ts_raw,
+      transfer_status_raw,
+      channel_raw,
+      country_code_raw,
+      transfer_id,
+      client_id,
+      amount,
+      transfer_ts,
+      COUNT(*) OVER (PARTITION BY business_date, transfer_id) AS duplicate_key_count
+    FROM normalized_data
+    -- Synthetic demo data only: account validation is intentionally simplified.
+    -- It checks presence and max length, without IBAN checksum validation.
+    WHERE transfer_id IS NOT NULL
+      AND client_id IS NOT NULL
+      AND source_account_raw IS NOT NULL
+      AND LENGTH(source_account_raw) <= 34
+      AND target_account_raw IS NOT NULL
+      AND LENGTH(target_account_raw) <= 34
+      AND amount IS NOT NULL
+      AND amount >= 0
+      AND currency_code_raw IS NOT NULL
+      AND REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
+      AND is_supported_currency = 1
+      AND transfer_ts IS NOT NULL
+      AND transfer_status_raw IS NOT NULL
+      AND transfer_status_raw IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
+      AND channel_raw IS NOT NULL
+      AND channel_raw IN ('API', 'BRANCH', 'MOBILE', 'WEB')
+      AND country_code_raw IS NOT NULL
+      AND REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
+      AND is_supported_country = 1
   )
   SELECT
     business_date,
@@ -414,27 +457,8 @@ BEGIN
     transfer_status_raw,
     channel_raw,
     country_code_raw
-  FROM normalized_data
-  -- Synthetic demo data only: account validation is intentionally simplified.
-  -- It checks presence and max length, without IBAN checksum validation.
-  WHERE transfer_id IS NOT NULL
-    AND client_id IS NOT NULL
-    AND source_account_raw IS NOT NULL
-    AND LENGTH(source_account_raw) <= 34
-    AND target_account_raw IS NOT NULL
-    AND LENGTH(target_account_raw) <= 34
-    AND amount IS NOT NULL
-    AND amount >= 0
-    AND currency_code_raw IS NOT NULL
-    AND REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
-    AND is_supported_currency = 1
-    AND transfer_ts IS NOT NULL
-    AND transfer_status_raw IS NOT NULL
-    AND transfer_status_raw IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
-    AND channel_raw IS NOT NULL
-    AND channel_raw IN ('API', 'BRANCH', 'MOBILE', 'WEB')
-    AND country_code_raw IS NOT NULL
-    AND is_supported_country = 1;
+  FROM valid_data
+  WHERE duplicate_key_count = 1;
 
   l_stage_rows_loaded := SQL%ROWCOUNT;
 
@@ -489,10 +513,146 @@ BEGIN
         ELSE 0
       END AS is_supported_country
     FROM dwh.ext_client_transfers
+  ),
+  valid_data AS (
+    SELECT
+      business_date,
+      source_row_num,
+      transfer_id_raw,
+      client_id_raw,
+      source_account_raw,
+      target_account_raw,
+      amount_raw,
+      currency_code_raw,
+      transfer_ts_raw,
+      transfer_status_raw,
+      channel_raw,
+      country_code_raw,
+      transfer_id,
+      client_id,
+      amount,
+      transfer_ts,
+      COUNT(*) OVER (PARTITION BY business_date, transfer_id) AS duplicate_key_count
+    FROM normalized_data
+    -- Synthetic demo data only: account validation is intentionally simplified.
+    -- It checks presence and max length, without IBAN checksum validation.
+    WHERE transfer_id IS NOT NULL
+      AND client_id IS NOT NULL
+      AND source_account_raw IS NOT NULL
+      AND LENGTH(source_account_raw) <= 34
+      AND target_account_raw IS NOT NULL
+      AND LENGTH(target_account_raw) <= 34
+      AND amount IS NOT NULL
+      AND amount >= 0
+      AND currency_code_raw IS NOT NULL
+      AND REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
+      AND is_supported_currency = 1
+      AND transfer_ts IS NOT NULL
+      AND transfer_status_raw IS NOT NULL
+      AND transfer_status_raw IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
+      AND channel_raw IS NOT NULL
+      AND channel_raw IN ('API', 'BRANCH', 'MOBILE', 'WEB')
+      AND country_code_raw IS NOT NULL
+      AND REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
+      AND is_supported_country = 1
+  ),
+  invalid_data AS (
+    SELECT
+      business_date,
+      l_snapshot_file AS source_file_name,
+      source_row_num,
+      transfer_id_raw,
+      client_id_raw,
+      source_account_raw,
+      target_account_raw,
+      amount_raw,
+      currency_code_raw,
+      transfer_ts_raw,
+      transfer_status_raw,
+      channel_raw,
+      country_code_raw,
+      RTRIM(
+        CASE WHEN transfer_id IS NULL THEN 'invalid transfer_id; ' END
+        || CASE WHEN client_id IS NULL THEN 'invalid client_id; ' END
+        || CASE WHEN source_account_raw IS NULL THEN 'missing source_account; ' END
+        -- Synthetic demo data only: no checksum validation yet for bank accounts.
+        || CASE WHEN source_account_raw IS NOT NULL AND LENGTH(source_account_raw) > 34
+          THEN 'source_account too long; '
+        END
+        || CASE WHEN target_account_raw IS NULL THEN 'missing target_account; ' END
+        || CASE WHEN target_account_raw IS NOT NULL AND LENGTH(target_account_raw) > 34
+          THEN 'target_account too long; '
+        END
+        || CASE WHEN amount IS NULL THEN 'invalid amount; ' END
+        || CASE WHEN amount IS NOT NULL AND amount < 0 THEN 'negative amount; ' END
+        || CASE
+          WHEN currency_code_raw IS NULL THEN 'missing currency_code; '
+          WHEN NOT REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
+            THEN 'invalid currency_code format; '
+          WHEN is_supported_currency = 0 THEN 'unsupported currency_code; '
+        END
+        || CASE WHEN transfer_ts IS NULL THEN 'invalid transfer_ts; ' END
+        || CASE
+          WHEN transfer_status_raw IS NULL THEN 'missing transfer_status; '
+          WHEN transfer_status_raw NOT IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
+            THEN 'invalid transfer_status; '
+        END
+        || CASE
+          WHEN channel_raw IS NULL THEN 'missing channel; '
+          WHEN channel_raw NOT IN ('API', 'BRANCH', 'MOBILE', 'WEB')
+            THEN 'invalid channel; '
+        END
+        || CASE
+          WHEN country_code_raw IS NULL THEN 'missing country_code; '
+          WHEN NOT REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
+            THEN 'invalid country_code format; '
+          WHEN is_supported_country = 0 THEN 'unsupported country_code; '
+        END,
+        '; '
+      ) AS reject_reason
+    FROM normalized_data
+    WHERE transfer_id IS NULL
+      OR client_id IS NULL
+      OR source_account_raw IS NULL
+      OR LENGTH(source_account_raw) > 34
+      OR target_account_raw IS NULL
+      OR LENGTH(target_account_raw) > 34
+      OR amount IS NULL
+      OR amount < 0
+      OR currency_code_raw IS NULL
+      OR NOT REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
+      OR is_supported_currency = 0
+      OR transfer_ts IS NULL
+      OR transfer_status_raw IS NULL
+      OR transfer_status_raw NOT IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
+      OR channel_raw IS NULL
+      OR channel_raw NOT IN ('API', 'BRANCH', 'MOBILE', 'WEB')
+      OR country_code_raw IS NULL
+      OR NOT REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
+      OR is_supported_country = 0
+  ),
+  duplicate_data AS (
+    SELECT
+      business_date,
+      l_snapshot_file AS source_file_name,
+      source_row_num,
+      transfer_id_raw,
+      client_id_raw,
+      source_account_raw,
+      target_account_raw,
+      amount_raw,
+      currency_code_raw,
+      transfer_ts_raw,
+      transfer_status_raw,
+      channel_raw,
+      country_code_raw,
+      'duplicate transfer_id in snapshot' AS reject_reason
+    FROM valid_data
+    WHERE duplicate_key_count > 1
   )
   SELECT
     business_date,
-    l_snapshot_file AS source_file_name,
+    source_file_name,
     source_row_num,
     transfer_id_raw,
     client_id_raw,
@@ -504,66 +664,53 @@ BEGIN
     transfer_status_raw,
     channel_raw,
     country_code_raw,
-    RTRIM(
-      CASE WHEN transfer_id IS NULL THEN 'invalid transfer_id; ' END
-      || CASE WHEN client_id IS NULL THEN 'invalid client_id; ' END
-      || CASE WHEN source_account_raw IS NULL THEN 'missing source_account; ' END
-      -- Synthetic demo data only: no checksum validation yet for bank accounts.
-      || CASE WHEN source_account_raw IS NOT NULL AND LENGTH(source_account_raw) > 34
-        THEN 'source_account too long; '
-      END
-      || CASE WHEN target_account_raw IS NULL THEN 'missing target_account; ' END
-      || CASE WHEN target_account_raw IS NOT NULL AND LENGTH(target_account_raw) > 34
-        THEN 'target_account too long; '
-      END
-      || CASE WHEN amount IS NULL THEN 'invalid amount; ' END
-      || CASE WHEN amount IS NOT NULL AND amount < 0 THEN 'negative amount; ' END
-      || CASE
-        WHEN currency_code_raw IS NULL THEN 'missing currency_code; '
-        WHEN NOT REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
-          THEN 'invalid currency_code format; '
-        WHEN is_supported_currency = 0 THEN 'unsupported currency_code; '
-      END
-      || CASE WHEN transfer_ts IS NULL THEN 'invalid transfer_ts; ' END
-      || CASE
-        WHEN transfer_status_raw IS NULL THEN 'missing transfer_status; '
-        WHEN transfer_status_raw NOT IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
-          THEN 'invalid transfer_status; '
-      END
-      || CASE
-        WHEN channel_raw IS NULL THEN 'missing channel; '
-        WHEN channel_raw NOT IN ('API', 'BRANCH', 'MOBILE', 'WEB')
-          THEN 'invalid channel; '
-      END
-      || CASE
-        WHEN country_code_raw IS NULL THEN 'missing country_code; '
-        WHEN is_supported_country = 0 THEN 'unsupported country_code; '
-      END,
-      '; '
-    ) AS reject_reason
-  FROM normalized_data
-  WHERE transfer_id IS NULL
-    OR client_id IS NULL
-    OR source_account_raw IS NULL
-    OR LENGTH(source_account_raw) > 34
-    OR target_account_raw IS NULL
-    OR LENGTH(target_account_raw) > 34
-    OR amount IS NULL
-    OR amount < 0
-    OR currency_code_raw IS NULL
-    OR NOT REGEXP_LIKE(currency_code_raw, '^[A-Z]{3}$')
-    OR is_supported_currency = 0
-    OR transfer_ts IS NULL
-    OR transfer_status_raw IS NULL
-    OR transfer_status_raw NOT IN ('COMPLETED', 'PENDING', 'REJECTED', 'FAILED')
-    OR channel_raw IS NULL
-    OR channel_raw NOT IN ('API', 'BRANCH', 'MOBILE', 'WEB')
-    OR country_code_raw IS NULL
-    OR is_supported_country = 0;
+    reject_reason
+  FROM invalid_data
+  UNION ALL
+  SELECT
+    business_date,
+    source_file_name,
+    source_row_num,
+    transfer_id_raw,
+    client_id_raw,
+    source_account_raw,
+    target_account_raw,
+    amount_raw,
+    currency_code_raw,
+    transfer_ts_raw,
+    transfer_status_raw,
+    channel_raw,
+    country_code_raw,
+    reject_reason
+  FROM duplicate_data;
 
   l_reject_rows_loaded := SQL%ROWCOUNT;
 
-  IF l_expected_rows != l_stage_rows_loaded + l_reject_rows_loaded THEN
+  IF l_expected_rows = l_stage_rows_loaded + l_reject_rows_loaded + 1 THEN
+    upsert_process_run(
+      p_status             => 'FAILED',
+      p_reason_code        => 'OK_COUNT_INCLUDES_HEADER',
+      p_status_message     => 'Ready file row count appears to include the CSV header.',
+      p_expected_row_count => l_expected_rows,
+      p_stage_row_count    => l_stage_rows_loaded,
+      p_reject_row_count   => l_reject_rows_loaded,
+      p_core_row_count     => 0,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => SYSTIMESTAMP,
+      p_next_retry_ts      => NULL
+    );
+
+    l_final_status_set := TRUE;
+
+    RAISE_APPLICATION_ERROR(
+      -20017,
+      'Ready file row count appears to include the CSV header. Expected data rows only: '
+      || (l_stage_rows_loaded + l_reject_rows_loaded)
+      || ', ready file says '
+      || l_expected_rows
+      || '.'
+    );
+  ELSIF l_expected_rows != l_stage_rows_loaded + l_reject_rows_loaded THEN
     upsert_process_run(
       p_status             => 'FAILED',
       p_reason_code        => 'OK_COUNT_MISMATCH',
@@ -601,6 +748,43 @@ BEGIN
     p_finished_ts        => NULL,
     p_next_retry_ts      => NULL
   );
+
+  SELECT COUNT(*)
+  INTO l_missing_clients
+  FROM dwh.stg_client_transfers stg
+  WHERE stg.business_date = l_business_date
+    AND NOT EXISTS (
+      SELECT 1
+      FROM dwh.core_clients cli
+      WHERE cli.business_date = stg.business_date
+        AND cli.client_id = stg.client_id
+    );
+
+  IF l_missing_clients > 0 THEN
+    upsert_process_run(
+      p_status             => 'FAILED',
+      p_reason_code        => 'MISSING_CLIENT_SNAPSHOT',
+      p_status_message     => 'Some transfer rows do not have a matching client snapshot for the same business_date.',
+      p_expected_row_count => l_expected_rows,
+      p_stage_row_count    => l_stage_rows_loaded,
+      p_reject_row_count   => l_reject_rows_loaded,
+      p_core_row_count     => 0,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => SYSTIMESTAMP,
+      p_next_retry_ts      => NULL
+    );
+
+    l_final_status_set := TRUE;
+
+    RAISE_APPLICATION_ERROR(
+      -20018,
+      'Missing client snapshot for '
+      || l_missing_clients
+      || ' accepted transfer row(s) on business_date '
+      || TO_CHAR(l_business_date, 'YYYY-MM-DD')
+      || '.'
+    );
+  END IF;
 
   DELETE FROM dwh.core_client_transfers
   WHERE business_date = l_business_date;

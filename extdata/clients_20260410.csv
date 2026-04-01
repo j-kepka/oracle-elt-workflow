@@ -1,0 +1,3 @@
+business_date;client_id;client_type;full_name;first_name;last_name;company_name;date_of_birth;registration_no;address_line_1;city;postal_code;country_code;pep_flag;high_risk_flag;client_status;document_id;tax_id;phone_number;email;kyc_status;risk_score
+2026-04-10;9101;PRIVATE;Nora Parent;Nora;Parent;;1992-10-10;;10 Parent Street;Warsaw;00-410;PL;0;0;ACTIVE;XD-9101-PARENT;TX-9101-PARENT;+9999101001;nora.parent.9101@demo-no-match.invalid;PASS;120
+2026-04-10;9102;BUSINESS;Delta Parent Ltd;;;Delta Parent Ltd;;DELTA-9102;11 Parent Avenue;Berlin;10117;DE;0;0;ACTIVE;XD-9102-PARENT;TX-9102-PARENT;+9999102002;delta.parent.9102@demo-no-match.invalid;REVIEW;220

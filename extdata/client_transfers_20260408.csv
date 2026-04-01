@@ -1,0 +1,2 @@
+transfer_id;client_id;source_account;target_account;amount;currency_code;transfer_ts;transfer_status;channel;country_code
+400801;8801;PL00123456789012345678901234;DE00123456789012345678;150.00;EUR;2026-04-08 09:00:00;COMPLETED;WEB;PL

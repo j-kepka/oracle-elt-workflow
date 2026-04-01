@@ -1,0 +1,3 @@
+business_date;client_id;client_type;full_name;first_name;last_name;company_name;date_of_birth;registration_no;address_line_1;city;postal_code;country_code;pep_flag;high_risk_flag;client_status;document_id;tax_id;phone_number;email;kyc_status;risk_score
+2026-03-27;6201;PRIVATE;Sam Carter;Sam;Carter;;1978-12-29;;11 Stargate Plaza;Warsaw;00-102;PL;0;0;ACTIVE;XD-AD3B-175B-D8FC;TX-2B28-2326-B46E;+9995399649;sam.carter.3f313@demo-no-match.invalid;REVIEW;461
+2026-03-27;6202;BUSINESS;Tyrell Corp;;;Tyrell Corp;;TY-6202;9 Nexus Avenue;Berlin;10117;DE;1;1;ARCHIVED;XD-85D1-7A33-CE7B;TX-FBAE-16F8-9F1A;+9992692195;tyrell.corp.07176@demo-no-match.invalid;PASS;360

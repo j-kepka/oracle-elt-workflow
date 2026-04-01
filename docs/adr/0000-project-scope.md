@@ -4,7 +4,7 @@
 - Date: 2026-03-25
 
 ## Goal
-Build a small Oracle ELT workflow and grow it in small PRs.
+Build a small Oracle ELT workflow and grow it in small delivery phases.
 
 ## Environment
 Current environment: local `dev/sandbox`.
