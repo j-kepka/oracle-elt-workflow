@@ -15,7 +15,7 @@ Current environment: local `dev/sandbox`.
 - Run one selected `business_date`.
 - Validate rows and keep rejects visible.
 - Move data external -> stage -> core.
-- Track one current process status row per `business_date`.
+- Track one current process status row per `process_name` and `business_date`.
 - Run load manually (procedure) and optionally by scheduler.
 
 ## Out of Scope (for now)
@@ -25,4 +25,7 @@ Current environment: local `dev/sandbox`.
 - Any production-like reuse without a separate security and infrastructure audit.
 
 ## Public Source of Truth
-- README + ADR files in `docs/adr/`.
+- `README.md`: public entry point, quick start, and current repository summary.
+- `docs/ROADMAP.md`: public phase map, current delivery phase, and MVP boundary.
+- ADR files in `docs/adr/`: public scope and decision rationale.
+- If public wording drifts, implemented repository behavior is confirmed by the SQL objects and smoke tests, and the public docs should be realigned to match.

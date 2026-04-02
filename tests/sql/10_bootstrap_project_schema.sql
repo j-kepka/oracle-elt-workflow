@@ -1,6 +1,6 @@
 -- Bootstrap the current project schema after the reset step.
 -- Run in the target PDB as SYSTEM or another DBA-capable account.
--- Expected SQL*Plus/SQLcl variable:
+-- Required SQL*Plus/SQLcl variable:
 --   DEFINE DWH_PASSWORD = '<DWH_PASSWORD>'
 -- Optional overrides:
 --   DEFINE WORKSPACE_ROOT = '/workspace'
@@ -11,7 +11,8 @@
 WHENEVER OSERROR EXIT FAILURE;
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
 
-SET ECHO ON;
+-- Keep password-bearing commands out of echoed script output.
+SET ECHO OFF;
 SET VERIFY OFF;
 SET SERVEROUTPUT ON;
 
