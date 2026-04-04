@@ -10,7 +10,7 @@ The published sequence is kept contiguous; if an earlier placeholder idea is mer
 For portfolio/demo purposes, the practical MVP scope ends before `Phase-09`.
 
 - `Phase-01` -> `Phase-08`: demo-facing scope
-- `Phase-09`, `Phase-10`, `Phase-11`, `Phase-12`: optional post-MVP work
+- `Phase-09`, `Phase-10`, `Phase-11`: optional post-MVP work
 
 This means the repository can be considered demo-complete without implementing every later hardening item.
 
@@ -21,20 +21,19 @@ Completed:
 - `Phase-02`: `business_date`, dated files, validation, reject handling
 - `Phase-03`: `.ok` ready files, `AUTO` / `MANUAL`, cutoff handling, current-status control table
 - `Phase-04`: join-ready `clients` snapshot, same-day FK from transfers to clients, extra demo AML helper fields, duplicate-to-reject handling
+- `Phase-05`: repeatable matrix-based smoke flow with deterministic compare helpers
 
 Planned next inside MVP:
-- `Phase-05`: AML data harmonization prerequisites
-- `Phase-06`: first AML mart plus simple sequential orchestration
+- `Phase-06`: AML join, data harmonization, first AML review mart/report, and simple sequential orchestration
 - `Phase-07`: export/spool flow
 
 Optional within MVP:
-- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists, stricter `.ok` contract enforcement (exactly one line), and safer dataset-level concurrency for external-table `LOCATION` switching
+- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
 
 Optional after MVP:
 - `Phase-09`: richer ETL run logs and DQ observability
 - `Phase-10`: historized pipeline direction and delayed reload hardening
 - `Phase-11`: optional scheduling/dispatcher extensions
-- `Phase-12`: cleanup and extra hardening outside the main delivery flow
 
 ## What The MVP Already Demonstrates
 

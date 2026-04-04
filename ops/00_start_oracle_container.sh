@@ -12,8 +12,17 @@ ORACLE_PASSWORD="${ORACLE_PASSWORD:-}"
 ORACLE_TZ="${ORACLE_TZ:-Europe/Berlin}"
 
 if [[ -z "${ORACLE_PASSWORD}" ]]; then
-  echo "Set ORACLE_PASSWORD before starting the container." >&2
-  echo "Example: ORACLE_PASSWORD='change-me' ./ops/00_start_oracle_container.sh" >&2
+  if [[ -t 0 ]]; then
+    read -r -s -p "Enter ORACLE_PASSWORD: " ORACLE_PASSWORD
+    echo
+  else
+    echo "Set ORACLE_PASSWORD before starting the container in non-interactive mode." >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "${ORACLE_PASSWORD}" ]]; then
+  echo "ORACLE_PASSWORD cannot be empty." >&2
   exit 1
 fi
 
@@ -46,7 +55,7 @@ docker run -d --name "${ORACLE_CONTAINER_NAME}" \
   -e ORA_SDTZ="${ORACLE_TZ}" \
   -v "${ORACLE_VOLUME_NAME}:/opt/oracle/oradata" \
   -v "${REPO_ROOT}/extdata:/opt/oracle/extdata" \
-  -v "${REPO_ROOT}:/workspace" \
+  -v "${REPO_ROOT}:/workspace:ro" \
   "${ORACLE_IMAGE}"
 
 echo "Started ${ORACLE_CONTAINER_NAME} with timezone ${ORACLE_TZ}."
