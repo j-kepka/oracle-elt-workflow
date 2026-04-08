@@ -128,6 +128,23 @@ Optional:
 @/workspace/tests/sql/94_optional_auto_waiting_checks.sql
 ```
 
+## 5. Optional AML Demo Dataset
+
+This AML-focused path is separate from the deterministic legacy smoke matrix.
+It uses a dedicated business date with richer transfer amounts, multiple currencies, extended client AML fields, `transfer_title`, and a simple manual FX seed.
+
+Run:
+
+```sql
+@/workspace/tests/sql/95_load_aml_demo_dataset.sql
+@/workspace/tests/sql/96_validate_aml_demo_dataset.sql
+```
+
+Current AML input contract notes:
+- `relationship_purpose_code`: `SALARY`, `SAVINGS`, `REMITTANCE`, `INVESTMENT`, `BUSINESS_PAYMENTS`
+- `expected_activity_level`: `LOW`, `MEDIUM`, `HIGH`, `VERY_HIGH`, `UNKNOWN`
+- `source_of_funds_declared`, `source_of_wealth_declared`, and `transfer_title` remain trimmed descriptive fields with max length `255`
+
 If a custom container name is used, replace `j-kepka-oracle-elt-workflow` with that name.
 The expected status, reason, and row-count matrix is asserted by `92_manual_smoke_compare.sql`.
 
@@ -138,6 +155,8 @@ The expected status, reason, and row-count matrix is asserted by `92_manual_smok
 - `92_manual_smoke_compare.sql`: compares actual DB state with expected outcomes and returns `PASS` or `FAIL`
 - `93_manual_smoke_detail_checks.sql`: shows focused diagnostic selects for key warning and normalization cases
 - `94_optional_auto_waiting_checks.sql`: runs the time-dependent `AUTO` checks for `2026-04-07`
+- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, and runs both loaders
+- `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, and FX seed rows
 
 ## Reading The Output
 

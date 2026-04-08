@@ -1,2 +1,2 @@
-transfer_id;client_id;source_account;target_account;amount;currency_code;transfer_ts;transfer_status;channel;country_code
-410001;9201;PL00114020040000300201355387;DE00500105170648489890;410.00;EUR;2026-04-11 10:00:00;COMPLETED;API;PL
+transfer_id;client_id;source_account;target_account;amount;currency_code;transfer_ts;transfer_status;channel;country_code;transfer_title
+410001;9201;PL00114020040000300201355387;DE00500105170648489890;410.00;EUR;2026-04-11 10:00:00;COMPLETED;API;PL;

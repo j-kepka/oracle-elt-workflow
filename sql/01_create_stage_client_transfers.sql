@@ -13,7 +13,8 @@ CREATE TABLE dwh.stg_client_transfers (
   transfer_ts       TIMESTAMP         NOT NULL,
   transfer_status   VARCHAR2(20 CHAR) NOT NULL,
   channel           VARCHAR2(20 CHAR) NOT NULL,
-  country_code      CHAR(2 CHAR)      NOT NULL
+  country_code      CHAR(2 CHAR)      NOT NULL,
+  transfer_title    VARCHAR2(255 CHAR)
 );
 
 -- Reject table for invalid records detected during raw-to-stage validation
@@ -31,6 +32,7 @@ CREATE TABLE dwh.stg_client_transfers_reject (
   transfer_status_raw  VARCHAR2(100 CHAR),
   channel_raw          VARCHAR2(100 CHAR),
   country_code_raw     VARCHAR2(100 CHAR),
+  transfer_title_raw   VARCHAR2(255 CHAR),
   reject_reason        VARCHAR2(4000 CHAR) NOT NULL,
   rejected_at          TIMESTAMP           DEFAULT SYSTIMESTAMP NOT NULL
 );

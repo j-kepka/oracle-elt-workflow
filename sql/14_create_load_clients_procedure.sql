@@ -374,7 +374,11 @@ BEGIN
     high_risk_flag,
     kyc_status,
     risk_score,
-    client_status
+    client_status,
+    relationship_purpose_code,
+    expected_activity_level,
+    source_of_funds_declared,
+    source_of_wealth_declared
   )
   WITH normalized_data AS (
     SELECT
@@ -402,6 +406,10 @@ BEGIN
       TRIM(risk_score_raw) AS risk_score_raw,
       TO_NUMBER(TRIM(risk_score_raw) DEFAULT NULL ON CONVERSION ERROR) AS risk_score,
       UPPER(TRIM(client_status_raw)) AS client_status_raw,
+      UPPER(TRIM(relationship_purpose_code_raw)) AS relationship_purpose_code_raw,
+      UPPER(TRIM(expected_activity_level_raw)) AS expected_activity_level_raw,
+      TRIM(source_of_funds_declared_raw) AS source_of_funds_declared_raw,
+      TRIM(source_of_wealth_declared_raw) AS source_of_wealth_declared_raw,
       TO_DATE(
         TRIM(business_date_raw) DEFAULT NULL ON CONVERSION ERROR,
         'YYYY-MM-DD'
@@ -464,6 +472,10 @@ BEGIN
       risk_score_raw,
       risk_score,
       client_status_raw,
+      relationship_purpose_code_raw,
+      expected_activity_level_raw,
+      source_of_funds_declared_raw,
+      source_of_wealth_declared_raw,
       business_date_from_file,
       client_id,
       date_of_birth,
@@ -503,6 +515,32 @@ BEGIN
       AND (risk_score_raw IS NULL OR risk_score IS NOT NULL)
       AND (risk_score IS NULL OR risk_score BETWEEN 0 AND 999)
       AND client_status_raw IN ('ACTIVE', 'ARCHIVED')
+      AND (relationship_purpose_code_raw IS NULL OR LENGTH(relationship_purpose_code_raw) <= 50)
+      AND (relationship_purpose_code_raw IS NULL OR REGEXP_LIKE(relationship_purpose_code_raw, '^[A-Z0-9_]+$'))
+      AND (
+        relationship_purpose_code_raw IS NULL
+        OR relationship_purpose_code_raw IN (
+          'SALARY',
+          'SAVINGS',
+          'REMITTANCE',
+          'INVESTMENT',
+          'BUSINESS_PAYMENTS'
+        )
+      )
+      AND (expected_activity_level_raw IS NULL OR LENGTH(expected_activity_level_raw) <= 50)
+      AND (expected_activity_level_raw IS NULL OR REGEXP_LIKE(expected_activity_level_raw, '^[A-Z0-9_]+$'))
+      AND (
+        expected_activity_level_raw IS NULL
+        OR expected_activity_level_raw IN (
+          'LOW',
+          'MEDIUM',
+          'HIGH',
+          'VERY_HIGH',
+          'UNKNOWN'
+        )
+      )
+      AND (source_of_funds_declared_raw IS NULL OR LENGTH(source_of_funds_declared_raw) <= 255)
+      AND (source_of_wealth_declared_raw IS NULL OR LENGTH(source_of_wealth_declared_raw) <= 255)
       AND (
         (client_type_raw = 'PRIVATE'
           AND first_name_raw IS NOT NULL
@@ -537,7 +575,11 @@ BEGIN
     high_risk_flag,
     kyc_status_raw,
     risk_score,
-    client_status_raw
+    client_status_raw,
+    relationship_purpose_code_raw,
+    expected_activity_level_raw,
+    source_of_funds_declared_raw,
+    source_of_wealth_declared_raw
   FROM valid_data
   WHERE duplicate_key_count = 1;
 
@@ -569,6 +611,10 @@ BEGIN
     kyc_status_raw,
     risk_score_raw,
     client_status_raw,
+    relationship_purpose_code_raw,
+    expected_activity_level_raw,
+    source_of_funds_declared_raw,
+    source_of_wealth_declared_raw,
     reject_reason
   )
   WITH normalized_data AS (
@@ -596,6 +642,10 @@ BEGIN
       UPPER(TRIM(kyc_status_raw)) AS kyc_status_raw,
       TRIM(risk_score_raw) AS risk_score_raw,
       UPPER(TRIM(client_status_raw)) AS client_status_raw,
+      UPPER(TRIM(relationship_purpose_code_raw)) AS relationship_purpose_code_raw,
+      UPPER(TRIM(expected_activity_level_raw)) AS expected_activity_level_raw,
+      TRIM(source_of_funds_declared_raw) AS source_of_funds_declared_raw,
+      TRIM(source_of_wealth_declared_raw) AS source_of_wealth_declared_raw,
       TO_DATE(
         TRIM(business_date_raw) DEFAULT NULL ON CONVERSION ERROR,
         'YYYY-MM-DD'
@@ -658,6 +708,10 @@ BEGIN
       kyc_status_raw,
       risk_score_raw,
       client_status_raw,
+      relationship_purpose_code_raw,
+      expected_activity_level_raw,
+      source_of_funds_declared_raw,
+      source_of_wealth_declared_raw,
       business_date_from_file,
       client_id,
       date_of_birth,
@@ -698,6 +752,32 @@ BEGIN
       AND (risk_score_raw IS NULL OR risk_score IS NOT NULL)
       AND (risk_score IS NULL OR risk_score BETWEEN 0 AND 999)
       AND client_status_raw IN ('ACTIVE', 'ARCHIVED')
+      AND (relationship_purpose_code_raw IS NULL OR LENGTH(relationship_purpose_code_raw) <= 50)
+      AND (relationship_purpose_code_raw IS NULL OR REGEXP_LIKE(relationship_purpose_code_raw, '^[A-Z0-9_]+$'))
+      AND (
+        relationship_purpose_code_raw IS NULL
+        OR relationship_purpose_code_raw IN (
+          'SALARY',
+          'SAVINGS',
+          'REMITTANCE',
+          'INVESTMENT',
+          'BUSINESS_PAYMENTS'
+        )
+      )
+      AND (expected_activity_level_raw IS NULL OR LENGTH(expected_activity_level_raw) <= 50)
+      AND (expected_activity_level_raw IS NULL OR REGEXP_LIKE(expected_activity_level_raw, '^[A-Z0-9_]+$'))
+      AND (
+        expected_activity_level_raw IS NULL
+        OR expected_activity_level_raw IN (
+          'LOW',
+          'MEDIUM',
+          'HIGH',
+          'VERY_HIGH',
+          'UNKNOWN'
+        )
+      )
+      AND (source_of_funds_declared_raw IS NULL OR LENGTH(source_of_funds_declared_raw) <= 255)
+      AND (source_of_wealth_declared_raw IS NULL OR LENGTH(source_of_wealth_declared_raw) <= 255)
       AND (
         (client_type_raw = 'PRIVATE'
           AND first_name_raw IS NOT NULL
@@ -736,6 +816,10 @@ BEGIN
       kyc_status_raw,
       risk_score_raw,
       client_status_raw,
+      relationship_purpose_code_raw,
+      expected_activity_level_raw,
+      source_of_funds_declared_raw,
+      source_of_wealth_declared_raw,
       RTRIM(
         CASE
           WHEN business_date_from_file IS NULL THEN 'invalid business_date; '
@@ -822,6 +906,50 @@ BEGIN
           WHEN client_status_raw NOT IN ('ACTIVE', 'ARCHIVED') THEN 'invalid client_status; '
         END
         || CASE
+          WHEN relationship_purpose_code_raw IS NOT NULL
+               AND LENGTH(relationship_purpose_code_raw) > 50
+            THEN 'relationship_purpose_code too long; '
+          WHEN relationship_purpose_code_raw IS NOT NULL
+               AND NOT REGEXP_LIKE(relationship_purpose_code_raw, '^[A-Z0-9_]+$')
+            THEN 'invalid relationship_purpose_code format; '
+          WHEN relationship_purpose_code_raw IS NOT NULL
+               AND relationship_purpose_code_raw NOT IN (
+                 'SALARY',
+                 'SAVINGS',
+                 'REMITTANCE',
+                 'INVESTMENT',
+                 'BUSINESS_PAYMENTS'
+               )
+            THEN 'unsupported relationship_purpose_code; '
+        END
+        || CASE
+          WHEN expected_activity_level_raw IS NOT NULL
+               AND LENGTH(expected_activity_level_raw) > 50
+            THEN 'expected_activity_level too long; '
+          WHEN expected_activity_level_raw IS NOT NULL
+               AND NOT REGEXP_LIKE(expected_activity_level_raw, '^[A-Z0-9_]+$')
+            THEN 'invalid expected_activity_level format; '
+          WHEN expected_activity_level_raw IS NOT NULL
+               AND expected_activity_level_raw NOT IN (
+                 'LOW',
+                 'MEDIUM',
+                 'HIGH',
+                 'VERY_HIGH',
+                 'UNKNOWN'
+               )
+            THEN 'unsupported expected_activity_level; '
+        END
+        || CASE
+          WHEN source_of_funds_declared_raw IS NOT NULL
+               AND LENGTH(source_of_funds_declared_raw) > 255
+            THEN 'source_of_funds_declared too long; '
+        END
+        || CASE
+          WHEN source_of_wealth_declared_raw IS NOT NULL
+               AND LENGTH(source_of_wealth_declared_raw) > 255
+            THEN 'source_of_wealth_declared too long; '
+        END
+        || CASE
           WHEN client_type_raw = 'PRIVATE' AND first_name_raw IS NULL THEN 'missing first_name for PRIVATE; '
           WHEN client_type_raw = 'PRIVATE' AND last_name_raw IS NULL THEN 'missing last_name for PRIVATE; '
           WHEN client_type_raw = 'PRIVATE' AND date_of_birth IS NULL THEN 'invalid date_of_birth for PRIVATE; '
@@ -869,6 +997,30 @@ BEGIN
       OR (risk_score IS NOT NULL AND risk_score NOT BETWEEN 0 AND 999)
       OR client_status_raw IS NULL
       OR client_status_raw NOT IN ('ACTIVE', 'ARCHIVED')
+      OR (relationship_purpose_code_raw IS NOT NULL AND LENGTH(relationship_purpose_code_raw) > 50)
+      OR (relationship_purpose_code_raw IS NOT NULL
+          AND NOT REGEXP_LIKE(relationship_purpose_code_raw, '^[A-Z0-9_]+$'))
+      OR (relationship_purpose_code_raw IS NOT NULL
+          AND relationship_purpose_code_raw NOT IN (
+            'SALARY',
+            'SAVINGS',
+            'REMITTANCE',
+            'INVESTMENT',
+            'BUSINESS_PAYMENTS'
+          ))
+      OR (expected_activity_level_raw IS NOT NULL AND LENGTH(expected_activity_level_raw) > 50)
+      OR (expected_activity_level_raw IS NOT NULL
+          AND NOT REGEXP_LIKE(expected_activity_level_raw, '^[A-Z0-9_]+$'))
+      OR (expected_activity_level_raw IS NOT NULL
+          AND expected_activity_level_raw NOT IN (
+            'LOW',
+            'MEDIUM',
+            'HIGH',
+            'VERY_HIGH',
+            'UNKNOWN'
+          ))
+      OR (source_of_funds_declared_raw IS NOT NULL AND LENGTH(source_of_funds_declared_raw) > 255)
+      OR (source_of_wealth_declared_raw IS NOT NULL AND LENGTH(source_of_wealth_declared_raw) > 255)
       OR (client_type_raw = 'PRIVATE' AND first_name_raw IS NULL)
       OR (client_type_raw = 'PRIVATE' AND last_name_raw IS NULL)
       OR (client_type_raw = 'PRIVATE' AND date_of_birth IS NULL)
@@ -902,6 +1054,10 @@ BEGIN
       kyc_status_raw,
       risk_score_raw,
       client_status_raw,
+      relationship_purpose_code_raw,
+      expected_activity_level_raw,
+      source_of_funds_declared_raw,
+      source_of_wealth_declared_raw,
       'duplicate client_id in snapshot' AS reject_reason
     FROM valid_data
     WHERE duplicate_key_count > 1
@@ -932,6 +1088,10 @@ BEGIN
     kyc_status_raw,
     risk_score_raw,
     client_status_raw,
+    relationship_purpose_code_raw,
+    expected_activity_level_raw,
+    source_of_funds_declared_raw,
+    source_of_wealth_declared_raw,
     reject_reason
   FROM invalid_data
   UNION ALL
@@ -961,6 +1121,10 @@ BEGIN
     kyc_status_raw,
     risk_score_raw,
     client_status_raw,
+    relationship_purpose_code_raw,
+    expected_activity_level_raw,
+    source_of_funds_declared_raw,
+    source_of_wealth_declared_raw,
     reject_reason
   FROM duplicate_data;
 
@@ -1056,7 +1220,11 @@ BEGIN
     high_risk_flag,
     kyc_status,
     risk_score,
-    client_status
+    client_status,
+    relationship_purpose_code,
+    expected_activity_level,
+    source_of_funds_declared,
+    source_of_wealth_declared
   )
   SELECT
     business_date,
@@ -1080,7 +1248,11 @@ BEGIN
     high_risk_flag,
     kyc_status,
     risk_score,
-    client_status
+    client_status,
+    relationship_purpose_code,
+    expected_activity_level,
+    source_of_funds_declared,
+    source_of_wealth_declared
   FROM dwh.stg_clients
   WHERE business_date = l_business_date;
 

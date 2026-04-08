@@ -364,7 +364,8 @@ BEGIN
     transfer_ts,
     transfer_status,
     channel,
-    country_code
+    country_code,
+    transfer_title
   )
   WITH normalized_data AS (
     SELECT
@@ -380,6 +381,7 @@ BEGIN
       UPPER(TRIM(transfer_status_raw)) AS transfer_status_raw,
       UPPER(TRIM(channel_raw)) AS channel_raw,
       UPPER(TRIM(country_code_raw)) AS country_code_raw,
+      TRIM(transfer_title_raw) AS transfer_title_raw,
       TO_NUMBER(TRIM(transfer_id_raw) DEFAULT NULL ON CONVERSION ERROR) AS transfer_id,
       TO_NUMBER(TRIM(client_id_raw) DEFAULT NULL ON CONVERSION ERROR) AS client_id,
       TO_NUMBER(TRIM(amount_raw) DEFAULT NULL ON CONVERSION ERROR) AS amount,
@@ -416,6 +418,7 @@ BEGIN
       transfer_status_raw,
       channel_raw,
       country_code_raw,
+      transfer_title_raw,
       transfer_id,
       client_id,
       amount,
@@ -443,6 +446,7 @@ BEGIN
       AND country_code_raw IS NOT NULL
       AND REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
       AND is_supported_country = 1
+      AND (transfer_title_raw IS NULL OR LENGTH(transfer_title_raw) <= 255)
   )
   SELECT
     business_date,
@@ -456,7 +460,8 @@ BEGIN
     transfer_ts,
     transfer_status_raw,
     channel_raw,
-    country_code_raw
+    country_code_raw,
+    transfer_title_raw
   FROM valid_data
   WHERE duplicate_key_count = 1;
 
@@ -476,6 +481,7 @@ BEGIN
     transfer_status_raw,
     channel_raw,
     country_code_raw,
+    transfer_title_raw,
     reject_reason
   )
   WITH normalized_data AS (
@@ -492,6 +498,7 @@ BEGIN
       UPPER(TRIM(transfer_status_raw)) AS transfer_status_raw,
       UPPER(TRIM(channel_raw)) AS channel_raw,
       UPPER(TRIM(country_code_raw)) AS country_code_raw,
+      TRIM(transfer_title_raw) AS transfer_title_raw,
       TO_NUMBER(TRIM(transfer_id_raw) DEFAULT NULL ON CONVERSION ERROR) AS transfer_id,
       TO_NUMBER(TRIM(client_id_raw) DEFAULT NULL ON CONVERSION ERROR) AS client_id,
       TO_NUMBER(TRIM(amount_raw) DEFAULT NULL ON CONVERSION ERROR) AS amount,
@@ -528,6 +535,7 @@ BEGIN
       transfer_status_raw,
       channel_raw,
       country_code_raw,
+      transfer_title_raw,
       transfer_id,
       client_id,
       amount,
@@ -555,6 +563,7 @@ BEGIN
       AND country_code_raw IS NOT NULL
       AND REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
       AND is_supported_country = 1
+      AND (transfer_title_raw IS NULL OR LENGTH(transfer_title_raw) <= 255)
   ),
   invalid_data AS (
     SELECT
@@ -571,6 +580,7 @@ BEGIN
       transfer_status_raw,
       channel_raw,
       country_code_raw,
+      transfer_title_raw,
       RTRIM(
         CASE WHEN transfer_id IS NULL THEN 'invalid transfer_id; ' END
         || CASE WHEN client_id IS NULL THEN 'invalid client_id; ' END
@@ -607,6 +617,10 @@ BEGIN
           WHEN NOT REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
             THEN 'invalid country_code format; '
           WHEN is_supported_country = 0 THEN 'unsupported country_code; '
+        END
+        || CASE
+          WHEN transfer_title_raw IS NOT NULL AND LENGTH(transfer_title_raw) > 255
+            THEN 'transfer_title too long; '
         END,
         '; '
       ) AS reject_reason
@@ -630,6 +644,7 @@ BEGIN
       OR country_code_raw IS NULL
       OR NOT REGEXP_LIKE(country_code_raw, '^[A-Z]{2}$')
       OR is_supported_country = 0
+      OR (transfer_title_raw IS NOT NULL AND LENGTH(transfer_title_raw) > 255)
   ),
   duplicate_data AS (
     SELECT
@@ -646,6 +661,7 @@ BEGIN
       transfer_status_raw,
       channel_raw,
       country_code_raw,
+      transfer_title_raw,
       'duplicate transfer_id in snapshot' AS reject_reason
     FROM valid_data
     WHERE duplicate_key_count > 1
@@ -664,6 +680,7 @@ BEGIN
     transfer_status_raw,
     channel_raw,
     country_code_raw,
+    transfer_title_raw,
     reject_reason
   FROM invalid_data
   UNION ALL
@@ -681,6 +698,7 @@ BEGIN
     transfer_status_raw,
     channel_raw,
     country_code_raw,
+    transfer_title_raw,
     reject_reason
   FROM duplicate_data;
 
@@ -800,7 +818,8 @@ BEGIN
     transfer_ts,
     transfer_status,
     channel,
-    country_code
+    country_code,
+    transfer_title
   )
   SELECT
     business_date,
@@ -813,7 +832,8 @@ BEGIN
     transfer_ts,
     transfer_status,
     channel,
-    country_code
+    country_code,
+    transfer_title
   FROM dwh.stg_client_transfers
   WHERE business_date = l_business_date;
 

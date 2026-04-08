@@ -40,7 +40,11 @@ CREATE TABLE dwh.ext_clients (
   phone_number_raw      VARCHAR2(100 CHAR),
   email_raw             VARCHAR2(255 CHAR),
   kyc_status_raw        VARCHAR2(100 CHAR),
-  risk_score_raw        VARCHAR2(100 CHAR)
+  risk_score_raw        VARCHAR2(100 CHAR),
+  relationship_purpose_code_raw  VARCHAR2(100 CHAR),
+  expected_activity_level_raw    VARCHAR2(100 CHAR),
+  source_of_funds_declared_raw   VARCHAR2(255 CHAR),
+  source_of_wealth_declared_raw  VARCHAR2(255 CHAR)
 )
 ORGANIZATION EXTERNAL (
   TYPE ORACLE_LOADER
@@ -76,7 +80,11 @@ ORGANIZATION EXTERNAL (
       phone_number_raw,
       email_raw,
       kyc_status_raw,
-      risk_score_raw
+      risk_score_raw,
+      relationship_purpose_code_raw,
+      expected_activity_level_raw,
+      source_of_funds_declared_raw,
+      source_of_wealth_declared_raw
     )
   )
   -- The load procedure changes LOCATION to the requested business date file before each run.
