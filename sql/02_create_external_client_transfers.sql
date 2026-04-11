@@ -28,7 +28,8 @@ CREATE TABLE dwh.ext_client_transfers (
   transfer_ts_raw     VARCHAR2(100 CHAR),
   transfer_status_raw VARCHAR2(100 CHAR),
   channel_raw         VARCHAR2(100 CHAR),
-  country_code_raw    VARCHAR2(100 CHAR)
+  country_code_raw    VARCHAR2(100 CHAR),
+  transfer_title_raw  VARCHAR2(255 CHAR)
 )
 ORGANIZATION EXTERNAL (
   TYPE ORACLE_LOADER
@@ -52,7 +53,8 @@ ORGANIZATION EXTERNAL (
       transfer_ts_raw,
       transfer_status_raw,
       channel_raw,
-      country_code_raw
+      country_code_raw,
+      transfer_title_raw
     )
   )
   -- The load procedure changes LOCATION to the requested business date file before each run.

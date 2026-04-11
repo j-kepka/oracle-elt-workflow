@@ -25,6 +25,10 @@ CREATE TABLE dwh.stg_clients (
   kyc_status       VARCHAR2(30 CHAR),
   risk_score       NUMBER(4),
   client_status    VARCHAR2(20 CHAR)  NOT NULL,
+  relationship_purpose_code   VARCHAR2(50 CHAR),
+  expected_activity_level     VARCHAR2(50 CHAR),
+  source_of_funds_declared    VARCHAR2(255 CHAR),
+  source_of_wealth_declared   VARCHAR2(255 CHAR),
   CONSTRAINT chk_stg_clients_status CHECK (client_status IN ('ACTIVE', 'ARCHIVED')),
   CONSTRAINT chk_stg_clients_risk_score CHECK (risk_score IS NULL OR risk_score BETWEEN 0 AND 999)
 );
@@ -56,6 +60,10 @@ CREATE TABLE dwh.stg_clients_reject (
   kyc_status_raw         VARCHAR2(100 CHAR),
   risk_score_raw         VARCHAR2(100 CHAR),
   client_status_raw      VARCHAR2(100 CHAR),
+  relationship_purpose_code_raw  VARCHAR2(100 CHAR),
+  expected_activity_level_raw    VARCHAR2(100 CHAR),
+  source_of_funds_declared_raw   VARCHAR2(255 CHAR),
+  source_of_wealth_declared_raw  VARCHAR2(255 CHAR),
   reject_reason          VARCHAR2(4000 CHAR) NOT NULL,
   rejected_at            TIMESTAMP           DEFAULT SYSTIMESTAMP NOT NULL
 );

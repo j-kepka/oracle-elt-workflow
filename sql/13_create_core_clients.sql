@@ -23,6 +23,10 @@ CREATE TABLE dwh.core_clients (
   kyc_status       VARCHAR2(30 CHAR),
   risk_score       NUMBER(4),
   client_status    VARCHAR2(20 CHAR)  NOT NULL,
+  relationship_purpose_code   VARCHAR2(50 CHAR),
+  expected_activity_level     VARCHAR2(50 CHAR),
+  source_of_funds_declared    VARCHAR2(255 CHAR),
+  source_of_wealth_declared   VARCHAR2(255 CHAR),
   CONSTRAINT pk_core_clients PRIMARY KEY (business_date, client_id),
   CONSTRAINT chk_core_clients_status CHECK (client_status IN ('ACTIVE', 'ARCHIVED')),
   CONSTRAINT chk_core_clients_risk_score CHECK (risk_score IS NULL OR risk_score BETWEEN 0 AND 999)

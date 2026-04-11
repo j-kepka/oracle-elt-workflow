@@ -23,8 +23,11 @@ Completed:
 - `Phase-04`: join-ready `clients` snapshot, same-day FK from transfers to clients, extra demo AML helper fields, duplicate-to-reject handling
 - `Phase-05`: repeatable matrix-based smoke flow with deterministic compare helpers
 
+Current public scope:
+- `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
+
 Planned next inside MVP:
-- `Phase-06`: AML join, data harmonization, first AML review mart/report, and simple sequential orchestration
+- `Phase-06 Part 2`: `mart_transfer_aml`, `amount_eur`, and first AML review flags / reason codes
 - `Phase-07`: export/spool flow
 
 Optional within MVP:
@@ -46,7 +49,10 @@ Optional after MVP:
 - same-day join between transfer and client snapshots
 - a client snapshot reporting-state flag with `ACTIVE` / `ARCHIVED`
 - duplicate business keys rejected before the `core` refresh
-- six demo AML helper fields already flowing through the `clients` pipeline
+- AML-oriented client context fields flowing through the `clients` pipeline
+- `transfer_title` flowing through the `client_transfers` pipeline
+- manual `ref_fx_rate_daily` support for later EUR normalization
+- dedicated AML demo dataset and validation helpers
 - rebuild-based smoke testing for success, warning, and failure cases
 
 ## Notes
