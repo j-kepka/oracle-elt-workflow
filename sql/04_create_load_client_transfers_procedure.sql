@@ -1,24 +1,112 @@
 -- Creates a procedure that reloads stage and core data from a dated external file snapshot
 
 CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
-  p_date     IN DATE DEFAULT TRUNC(SYSDATE),
-  p_run_mode IN VARCHAR2 DEFAULT 'MANUAL'
+  p_date                      IN DATE DEFAULT TRUNC(SYSDATE),
+  p_run_mode                  IN VARCHAR2 DEFAULT 'MANUAL',
+  p_auto_cutoff_ts            IN TIMESTAMP DEFAULT NULL,
+  p_auto_retry_sleep_minutes  IN PLS_INTEGER DEFAULT 15
 ) AS
-  c_process_name      CONSTANT VARCHAR2(100 CHAR) := 'LOAD_CLIENT_TRANSFERS';
-  c_ext_dir           CONSTANT VARCHAR2(30 CHAR) := 'EXT_DIR';
-  l_business_date     DATE := TRUNC(p_date);
-  l_run_mode          VARCHAR2(10 CHAR) := UPPER(TRIM(p_run_mode));
-  l_snapshot_file     VARCHAR2(128 CHAR);
-  l_ready_file        VARCHAR2(128 CHAR);
-  l_expected_rows     NUMBER := 0;
-  l_stage_rows_loaded NUMBER := 0;
+  c_process_name       CONSTANT VARCHAR2(100 CHAR) := 'LOAD_CLIENT_TRANSFERS';
+  c_ext_dir            CONSTANT VARCHAR2(30 CHAR) := 'EXT_DIR';
+  c_ext_work_dir       CONSTANT VARCHAR2(30 CHAR) := 'EXT_WORK_DIR';
+  l_business_date      DATE := TRUNC(p_date);
+  l_run_mode           VARCHAR2(10 CHAR) := UPPER(TRIM(p_run_mode));
+  l_snapshot_file      VARCHAR2(128 CHAR);
+  l_ready_file         VARCHAR2(128 CHAR);
+  l_expected_rows      NUMBER := 0;
+  l_stage_rows_loaded  NUMBER := 0;
   l_reject_rows_loaded NUMBER := 0;
-  l_core_rows_loaded  NUMBER := 0;
-  l_missing_clients   NUMBER := 0;
-  l_attempt_ts        TIMESTAMP := SYSTIMESTAMP;
-  l_cutoff_ts         TIMESTAMP;
-  l_next_retry_ts     TIMESTAMP;
-  l_final_status_set  BOOLEAN := FALSE;
+  l_core_rows_loaded   NUMBER := 0;
+  l_missing_clients    NUMBER := 0;
+  l_attempt_ts         TIMESTAMP;
+  l_cutoff_ts          TIMESTAMP;
+  l_next_retry_ts      TIMESTAMP;
+  l_current_ts         TIMESTAMP;
+  l_retry_sleep_minutes PLS_INTEGER := GREATEST(1, NVL(p_auto_retry_sleep_minutes, 15));
+  l_wait_started       BOOLEAN := FALSE;
+  l_final_status_set   BOOLEAN := FALSE;
+  l_stage_ext_source   VARCHAR2(4000 CHAR);
+  l_reject_ext_source  VARCHAR2(4000 CHAR);
+  l_stage_sql          VARCHAR2(32767 CHAR);
+  l_reject_sql         VARCHAR2(32767 CHAR);
+
+  FUNCTION sql_string_literal (
+    p_value IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN '''' || REPLACE(p_value, '''', '''''') || '''';
+  END sql_string_literal;
+
+  FUNCTION sql_date_literal (
+    p_value IN DATE
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN 'DATE ' || sql_string_literal(TO_CHAR(p_value, 'YYYY-MM-DD'));
+  END sql_date_literal;
+
+  FUNCTION build_loader_artifact_name (
+    p_step      IN VARCHAR2,
+    p_extension IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN LOWER(c_process_name)
+      || '_'
+      || TO_CHAR(l_business_date, 'YYYYMMDD')
+      || '_'
+      || TO_CHAR(l_attempt_ts, 'YYYYMMDDHH24MISSFF6')
+      || '_'
+      || LOWER(p_step)
+      || '.'
+      || LOWER(p_extension);
+  END build_loader_artifact_name;
+
+  FUNCTION build_external_source (
+    p_table_name    IN VARCHAR2,
+    p_snapshot_file IN VARCHAR2,
+    p_step_name     IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+    l_log_file      VARCHAR2(255 CHAR);
+    l_bad_file      VARCHAR2(255 CHAR);
+    l_discard_file  VARCHAR2(255 CHAR);
+  BEGIN
+    l_log_file := build_loader_artifact_name(p_step_name, 'log');
+    l_bad_file := build_loader_artifact_name(p_step_name, 'bad');
+    l_discard_file := build_loader_artifact_name(p_step_name, 'dsc');
+
+    RETURN p_table_name
+      || ' EXTERNAL MODIFY ('
+      || 'ACCESS PARAMETERS ('
+      || CHR(39)
+      || 'LOGFILE '
+      || c_ext_work_dir
+      || ':'
+      || CHR(39)
+      || CHR(39)
+      || l_log_file
+      || CHR(39)
+      || CHR(39)
+      || ' BADFILE '
+      || c_ext_work_dir
+      || ':'
+      || CHR(39)
+      || CHR(39)
+      || l_bad_file
+      || CHR(39)
+      || CHR(39)
+      || ' DISCARDFILE '
+      || c_ext_work_dir
+      || ':'
+      || CHR(39)
+      || CHR(39)
+      || l_discard_file
+      || CHR(39)
+      || CHR(39)
+      || CHR(39)
+      || ') '
+      || 'LOCATION ('
+      || sql_string_literal(p_snapshot_file)
+      || '))';
+  END build_external_source;
 
   PROCEDURE assert_file_exists (
     p_directory     IN VARCHAR2,
@@ -186,9 +274,13 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
     COMMIT;
   END upsert_process_run;
 BEGIN
+  l_attempt_ts := SYSTIMESTAMP;
   l_snapshot_file := 'client_transfers_' || TO_CHAR(l_business_date, 'YYYYMMDD') || '.csv';
   l_ready_file := 'client_transfers_' || TO_CHAR(l_business_date, 'YYYYMMDD') || '.ok';
-  l_cutoff_ts := CAST(l_business_date AS TIMESTAMP) + NUMTODSINTERVAL(12, 'HOUR');
+  l_cutoff_ts := NVL(
+    p_auto_cutoff_ts,
+    CAST(TRUNC(CAST(l_attempt_ts AS DATE)) AS TIMESTAMP) + NUMTODSINTERVAL(12, 'HOUR')
+  );
 
   IF l_run_mode NOT IN ('AUTO', 'MANUAL') THEN
     RAISE_APPLICATION_ERROR(
@@ -210,72 +302,94 @@ BEGIN
     p_next_retry_ts      => NULL
   );
 
-  BEGIN
-    assert_file_exists(
-      p_directory     => c_ext_dir,
-      p_filename      => l_ready_file,
-      p_error_code    => -20010,
-      p_error_message => 'Ready file ' || l_ready_file || ' not found.'
-    );
-  EXCEPTION
-    WHEN OTHERS THEN
-      IF SQLCODE = -20010 THEN
-        IF l_run_mode = 'AUTO' AND l_attempt_ts < l_cutoff_ts THEN
-          IF l_attempt_ts + NUMTODSINTERVAL(30, 'MINUTE') < l_cutoff_ts THEN
-            l_next_retry_ts := l_attempt_ts + NUMTODSINTERVAL(30, 'MINUTE');
+  LOOP
+    BEGIN
+      assert_file_exists(
+        p_directory     => c_ext_dir,
+        p_filename      => l_ready_file,
+        p_error_code    => -20010,
+        p_error_message => 'Ready file ' || l_ready_file || ' not found.'
+      );
+
+      EXIT;
+    EXCEPTION
+      WHEN OTHERS THEN
+        IF SQLCODE = -20010 THEN
+          l_current_ts := SYSTIMESTAMP;
+
+          IF l_run_mode = 'AUTO' AND l_current_ts < l_cutoff_ts THEN
+            l_next_retry_ts := LEAST(
+              l_cutoff_ts,
+              l_current_ts + NUMTODSINTERVAL(l_retry_sleep_minutes, 'MINUTE')
+            );
+
+            upsert_process_run(
+              p_status             => 'WAITING',
+              p_reason_code        => 'WAITING_FOR_OK',
+              p_status_message     => 'Ready file not available before the run-day cutoff. Waiting inside the procedure for the next retry window.',
+              p_expected_row_count => NULL,
+              p_stage_row_count    => 0,
+              p_reject_row_count   => 0,
+              p_core_row_count     => 0,
+              p_started_ts         => l_attempt_ts,
+              p_finished_ts        => l_current_ts,
+              p_next_retry_ts      => l_next_retry_ts,
+              p_retry_count_delta  => 1
+            );
+
+            l_wait_started := TRUE;
+
+            DBMS_OUTPUT.PUT_LINE(
+              'dwh.prc_load_client_transfers business_date='
+              || TO_CHAR(l_business_date, 'YYYY-MM-DD')
+              || ', status=WAITING'
+              || ', reason=WAITING_FOR_OK'
+              || ', next_retry_ts='
+              || TO_CHAR(l_next_retry_ts, 'YYYY-MM-DD HH24:MI:SS')
+            );
+
+            -- The process contract is expressed in minutes; DBMS_SESSION.SLEEP expects seconds.
+            DBMS_SESSION.SLEEP(l_retry_sleep_minutes * 60);
           ELSE
-            l_next_retry_ts := l_cutoff_ts;
+            upsert_process_run(
+              p_status             => 'FAILED',
+              p_reason_code        => CASE
+                                        WHEN l_run_mode = 'MANUAL' THEN 'MISSING_OK_MANUAL'
+                                        ELSE 'MISSING_OK_AFTER_CUTOFF'
+                                      END,
+              p_status_message     => SQLERRM,
+              p_expected_row_count => NULL,
+              p_stage_row_count    => 0,
+              p_reject_row_count   => 0,
+              p_core_row_count     => 0,
+              p_started_ts         => l_attempt_ts,
+              p_finished_ts        => SYSTIMESTAMP,
+              p_next_retry_ts      => NULL
+            );
+
+            l_final_status_set := TRUE;
+            RAISE;
           END IF;
-
-          upsert_process_run(
-            p_status             => 'WAITING',
-            p_reason_code        => 'WAITING_FOR_OK',
-            p_status_message     => 'Ready file not available before cutoff. Waiting for retry.',
-            p_expected_row_count => NULL,
-            p_stage_row_count    => 0,
-            p_reject_row_count   => 0,
-            p_core_row_count     => 0,
-            p_started_ts         => l_attempt_ts,
-            p_finished_ts        => SYSTIMESTAMP,
-            p_next_retry_ts      => l_next_retry_ts,
-            p_retry_count_delta  => 1
-          );
-
-          l_final_status_set := TRUE;
-
-          DBMS_OUTPUT.PUT_LINE(
-            'dwh.prc_load_client_transfers business_date='
-            || TO_CHAR(l_business_date, 'YYYY-MM-DD')
-            || ', status=WAITING'
-            || ', reason=WAITING_FOR_OK'
-            || ', next_retry_ts='
-            || TO_CHAR(l_next_retry_ts, 'YYYY-MM-DD HH24:MI:SS')
-          );
-
-          RETURN;
+        ELSE
+          RAISE;
         END IF;
+    END;
+  END LOOP;
 
-        upsert_process_run(
-          p_status             => 'FAILED',
-          p_reason_code        => CASE
-                                    WHEN l_run_mode = 'MANUAL' THEN 'MISSING_OK_MANUAL'
-                                    ELSE 'MISSING_OK_AFTER_CUTOFF'
-                                  END,
-          p_status_message     => SQLERRM,
-          p_expected_row_count => NULL,
-          p_stage_row_count    => 0,
-          p_reject_row_count   => 0,
-          p_core_row_count     => 0,
-          p_started_ts         => l_attempt_ts,
-          p_finished_ts        => SYSTIMESTAMP,
-          p_next_retry_ts      => NULL
-        );
-
-        l_final_status_set := TRUE;
-      END IF;
-
-      RAISE;
-  END;
+  IF l_wait_started THEN
+    upsert_process_run(
+      p_status             => 'PROCESSING',
+      p_reason_code        => NULL,
+      p_status_message     => 'Ready file detected after WAITING. Continuing with validation and load.',
+      p_expected_row_count => NULL,
+      p_stage_row_count    => 0,
+      p_reject_row_count   => 0,
+      p_core_row_count     => 0,
+      p_started_ts         => l_attempt_ts,
+      p_finished_ts        => NULL,
+      p_next_retry_ts      => NULL
+    );
+  END IF;
 
   BEGIN
     l_expected_rows := read_expected_rows(
@@ -343,8 +457,17 @@ BEGIN
     p_next_retry_ts      => NULL
   );
 
-  EXECUTE IMMEDIATE
-    'ALTER TABLE dwh.ext_client_transfers LOCATION (''' || l_snapshot_file || ''')';
+  l_stage_ext_source := build_external_source(
+    p_table_name    => 'dwh.ext_client_transfers',
+    p_snapshot_file => l_snapshot_file,
+    p_step_name     => 'stage'
+  );
+
+  l_reject_ext_source := build_external_source(
+    p_table_name    => 'dwh.ext_client_transfers',
+    p_snapshot_file => l_snapshot_file,
+    p_step_name     => 'reject'
+  );
 
   DELETE FROM dwh.stg_client_transfers
   WHERE business_date = l_business_date;
@@ -352,6 +475,9 @@ BEGIN
   DELETE FROM dwh.stg_client_transfers_reject
   WHERE business_date = l_business_date;
 
+  l_stage_sql := REPLACE(
+    REPLACE(
+      q'~
   INSERT INTO dwh.stg_client_transfers (
     business_date,
     source_row_num,
@@ -369,7 +495,7 @@ BEGIN
   )
   WITH normalized_data AS (
     SELECT
-      l_business_date AS business_date,
+      __BUSINESS_DATE__ AS business_date,
       source_row_num,
       TRIM(transfer_id_raw) AS transfer_id_raw,
       TRIM(client_id_raw) AS client_id_raw,
@@ -402,7 +528,7 @@ BEGIN
         ) THEN 1
         ELSE 0
       END AS is_supported_country
-    FROM dwh.ext_client_transfers
+    FROM __EXT_SOURCE__
   ),
   valid_data AS (
     SELECT
@@ -463,10 +589,22 @@ BEGIN
     country_code_raw,
     transfer_title_raw
   FROM valid_data
-  WHERE duplicate_key_count = 1;
+  WHERE duplicate_key_count = 1;~',
+      '__EXT_SOURCE__',
+      l_stage_ext_source
+    ),
+    '__BUSINESS_DATE__',
+    sql_date_literal(l_business_date)
+  );
+
+  EXECUTE IMMEDIATE l_stage_sql;
 
   l_stage_rows_loaded := SQL%ROWCOUNT;
 
+  l_reject_sql := REPLACE(
+    REPLACE(
+      REPLACE(
+        q'~
   INSERT INTO dwh.stg_client_transfers_reject (
     business_date,
     source_file_name,
@@ -486,7 +624,7 @@ BEGIN
   )
   WITH normalized_data AS (
     SELECT
-      l_business_date AS business_date,
+      __BUSINESS_DATE__ AS business_date,
       source_row_num,
       TRIM(transfer_id_raw) AS transfer_id_raw,
       TRIM(client_id_raw) AS client_id_raw,
@@ -519,7 +657,7 @@ BEGIN
         ) THEN 1
         ELSE 0
       END AS is_supported_country
-    FROM dwh.ext_client_transfers
+    FROM __EXT_SOURCE__
   ),
   valid_data AS (
     SELECT
@@ -568,7 +706,7 @@ BEGIN
   invalid_data AS (
     SELECT
       business_date,
-      l_snapshot_file AS source_file_name,
+      __SOURCE_FILE__ AS source_file_name,
       source_row_num,
       transfer_id_raw,
       client_id_raw,
@@ -649,7 +787,7 @@ BEGIN
   duplicate_data AS (
     SELECT
       business_date,
-      l_snapshot_file AS source_file_name,
+      __SOURCE_FILE__ AS source_file_name,
       source_row_num,
       transfer_id_raw,
       client_id_raw,
@@ -700,7 +838,18 @@ BEGIN
     country_code_raw,
     transfer_title_raw,
     reject_reason
-  FROM duplicate_data;
+  FROM duplicate_data;~',
+        '__EXT_SOURCE__',
+        l_reject_ext_source
+      ),
+      '__BUSINESS_DATE__',
+      sql_date_literal(l_business_date)
+    ),
+    '__SOURCE_FILE__',
+    sql_string_literal(l_snapshot_file)
+  );
+
+  EXECUTE IMMEDIATE l_reject_sql;
 
   l_reject_rows_loaded := SQL%ROWCOUNT;
 

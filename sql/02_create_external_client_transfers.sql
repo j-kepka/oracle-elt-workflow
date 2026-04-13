@@ -57,7 +57,7 @@ ORGANIZATION EXTERNAL (
       transfer_title_raw
     )
   )
-  -- The load procedure changes LOCATION to the requested business date file before each run.
+  -- The load procedures override LOCATION and loader artifact names per query via EXTERNAL MODIFY.
   LOCATION ('client_transfers_20260326.csv')
 )
 REJECT LIMIT 0;

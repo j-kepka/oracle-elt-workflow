@@ -33,6 +33,8 @@ cd <PROJECT_PATH>
 
 The helper prompts for `ORACLE_PASSWORD`.
 
+Replace `"<PROJECT_PATH>"` with the local path of this repository in every command below.
+
 `<PROJECT_PATH>` is the local path where the repository was cloned, for example:
 - Linux / WSL: `/home/<user>/projects/oracle-elt-workflow`
 - macOS: `/Users/<user>/projects/oracle-elt-workflow`
@@ -59,10 +61,15 @@ docker logs -f j-kepka-oracle-elt-workflow
 
 ## 2. Reset And Bootstrap The Schema
 
-Run:
+Run on the host:
 
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
+```
+
+Then run inside the container:
+
+```bash
 sqlplus / as sysdba
 ```
 
@@ -76,6 +83,7 @@ DEFINE DWH_PASSWORD = '<DWH_PASSWORD>'
 ```
 
 This resets project-specific objects and recreates the `dwh` schema plus current demo objects.
+It is destructive for the local demo schema and should be used only in the local sandbox flow.
 
 ## 3. Fix `extdata/work` Permissions
 
@@ -140,6 +148,9 @@ Run:
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
 ```
 
+`10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for this AML demo path.
+The FX rows used by the AML demo are inserted by `95_load_aml_demo_dataset.sql`.
+
 Current AML input contract notes:
 - `relationship_purpose_code`: `SALARY`, `SAVINGS`, `REMITTANCE`, `INVESTMENT`, `BUSINESS_PAYMENTS`
 - `expected_activity_level`: `LOW`, `MEDIUM`, `HIGH`, `VERY_HIGH`, `UNKNOWN`
@@ -154,7 +165,7 @@ The expected status, reason, and row-count matrix is asserted by `92_manual_smok
 - `91_manual_smoke_actuals.sql`: shows current DB state per deterministic case
 - `92_manual_smoke_compare.sql`: compares actual DB state with expected outcomes and returns `PASS` or `FAIL`
 - `93_manual_smoke_detail_checks.sql`: shows focused diagnostic selects for key warning and normalization cases
-- `94_optional_auto_waiting_checks.sql`: runs the time-dependent `AUTO` checks for `2026-04-07`
+- `94_optional_auto_waiting_checks.sql`: runs the optional `AUTO` checks for `2026-04-07` with a shared test cutoff (`now + 5 minutes`) and retry every 1 minute
 - `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, and runs both loaders
 - `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, and FX seed rows
 
@@ -175,6 +186,9 @@ In `92_manual_smoke_compare.sql`:
 
 The deterministic matrix covers only the `MANUAL` cases.
 The `AUTO` checks stay separate because `2026-04-07` depends on database time relative to the cutoff.
+Current `AUTO` behavior is intentionally lightweight: the procedure retries inside a bounded loop until the run-day `12:00` cutoff.
+This is a temporary bridge for the demo, not a full dispatcher consuming `next_retry_ts`.
+In the optional smoke helper `94_optional_auto_waiting_checks.sql`, that default is intentionally overridden to a shared test cutoff (`now + 5 minutes`) with retry every 1 minute, so the missing-`.ok` path can be observed without waiting until noon.
 
 ## Scenario Maintenance Note
 
