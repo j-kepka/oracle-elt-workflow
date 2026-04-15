@@ -91,6 +91,11 @@ sudo find extdata -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name
 
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
+```
+
+Then run inside the container:
+
+```bash
 sqlplus /nolog
 ```
 

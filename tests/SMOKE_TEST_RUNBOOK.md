@@ -112,10 +112,15 @@ Expected result:
 
 ## 4. Run The Deterministic Smoke Flow
 
-Run:
+Run on the host:
 
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
+```
+
+Then run inside the container:
+
+```bash
 sqlplus /nolog
 ```
 
