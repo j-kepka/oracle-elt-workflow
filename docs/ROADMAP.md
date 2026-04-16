@@ -7,12 +7,13 @@ The published sequence is kept contiguous; if an earlier placeholder idea is mer
 
 ## Scope Boundary
 
-For portfolio/demo purposes, the practical MVP scope ends before `Phase-09`.
+For portfolio/demo purposes, the practical MVP scope ends after `Phase-07`.
 
-- `Phase-01` -> `Phase-08`: demo-facing scope
-- `Phase-09`, `Phase-10`, `Phase-11`: optional post-MVP work
+- `Phase-01` -> `Phase-07`: practical MVP scope
+- `Phase-08`: `MVP+`
+- `Phase-09`: `MVP++`
 
-This means the repository can be considered demo-complete without implementing every later hardening item.
+This means the repository can be considered demo-complete without implementing every later hardening item planned beyond `Phase-07`.
 
 ## Current Status
 
@@ -25,18 +26,15 @@ Completed:
 
 Current public scope:
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
+- current pre-mart stabilization fix in progress: loader runtime cleanup before `Phase-06 Part 2`, including query-scoped external-file binding and bounded `AUTO` retry behavior for missing `.ok`
 
 Planned next inside MVP:
 - `Phase-06 Part 2`: `mart_transfer_aml`, `amount_eur`, and first AML review flags / reason codes
 - `Phase-07`: export/spool flow
 
-Optional within MVP:
-- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
-
 Optional after MVP:
-- `Phase-09`: richer ETL run logs and DQ observability
-- `Phase-10`: historized pipeline direction and delayed reload hardening
-- `Phase-11`: optional scheduling/dispatcher extensions
+- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
+- `Phase-09`: richer ETL run logs, DQ observability, and selected operational hardening
 
 ## What The MVP Already Demonstrates
 

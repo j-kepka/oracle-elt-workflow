@@ -1,7 +1,6 @@
--- Operational helper: validate the current row counts after running the MVP load
-
-SELECT COUNT(*) AS external_row_count
-FROM dwh.ext_client_transfers;
+-- Operational helper: validate persisted load state after running the transfers load.
+-- After query-scoped EXTERNAL MODIFY, direct counts from dwh.ext_client_transfers
+-- would reflect the default external-table location, not the last file bound at runtime.
 
 SELECT business_date, COUNT(*) AS stage_row_count
 FROM dwh.stg_client_transfers

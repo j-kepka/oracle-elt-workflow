@@ -1,7 +1,6 @@
--- Operational helper: validate the current row counts after running the client load
-
-SELECT COUNT(*) AS external_row_count
-FROM dwh.ext_clients;
+-- Operational helper: validate persisted load state after running the client load.
+-- After query-scoped EXTERNAL MODIFY, direct counts from dwh.ext_clients
+-- would reflect the default external-table location, not the last file bound at runtime.
 
 SELECT business_date, COUNT(*) AS stage_row_count
 FROM dwh.stg_clients

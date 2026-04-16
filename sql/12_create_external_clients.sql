@@ -87,7 +87,7 @@ ORGANIZATION EXTERNAL (
       source_of_wealth_declared_raw
     )
   )
-  -- The load procedure changes LOCATION to the requested business date file before each run.
+  -- The load procedures override LOCATION and loader artifact names per query via EXTERNAL MODIFY.
   LOCATION ('clients_20260326.csv')
 )
 REJECT LIMIT 0;

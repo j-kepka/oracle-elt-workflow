@@ -17,6 +17,8 @@ The documented run path targets a local Docker-based demo/sandbox environment.
 
 ## Quick Start
 
+Replace `"<PROJECT_PATH>"` with the local path of this repository in every command below.
+
 1. Start Oracle Free from the repository root:
 
 ```bash
@@ -42,10 +44,20 @@ docker logs -f j-kepka-oracle-elt-workflow
 
 3. Bootstrap the demo schema:
 
+Run on the host:
+
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
+```
+
+Then run inside the container:
+
+```bash
 sqlplus / as sysdba
 ```
+
+This reset/bootstrap flow is destructive in the local sandbox.
+It recreates the `dwh` schema and resets the current demo objects.
 
 In `SQL>`:
 
@@ -79,6 +91,11 @@ sudo find extdata -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name
 
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
+```
+
+Then run inside the container:
+
+```bash
 sqlplus /nolog
 ```
 
@@ -106,11 +123,16 @@ Optional AML demo dataset checks:
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
 ```
 
+`10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for the AML demo path.
+The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
+
 ## Verification Notes
 
 - The main objective smoke result is returned by `92_manual_smoke_compare.sql`.
 - The deterministic `MANUAL` matrix is the default verification path for the current demo flow.
 - The AML demo dataset path is separate from the legacy deterministic matrix.
+- `AUTO` currently uses a bounded retry loop inside the load procedure until the run-day `12:00` cutoff.
+  This is a temporary demo bridge, not a full scheduler or dispatcher.
 
 ## Input Files
 
