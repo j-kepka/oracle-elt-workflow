@@ -2,7 +2,7 @@
 
 Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and AML-oriented demo extensions.
 
-The current demo scope aligns with `Phase-06 Part 1` in [docs/ROADMAP.md](docs/ROADMAP.md).
+The current public scope covers `Phase-06 Part 1`, the completed pre-mart loader stabilization fix, and the current pre-mart file-layout fix described in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What The Repository Covers
 
@@ -72,7 +72,7 @@ DEFINE DWH_PASSWORD = '<DWH_PASSWORD>'
 Replace `<DWH_PASSWORD>` with the password chosen for the demo `dwh` schema.
 The same password is used later when connecting as `dwh`.
 
-4. Fix `extdata/work` permissions on the host:
+4. Fix `extdata` permissions on the host:
 
 ```bash
 cd <PROJECT_PATH>
@@ -80,11 +80,11 @@ cd <PROJECT_PATH>
 ORACLE_UID=$(docker exec j-kepka-oracle-elt-workflow id -u oracle)
 ORACLE_GID=$(docker exec j-kepka-oracle-elt-workflow id -g oracle)
 
-sudo mkdir -p extdata/work
-sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/work
+sudo mkdir -p extdata/inbound extdata/outbound extdata/work
+sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/outbound extdata/work
+sudo chmod 755 extdata extdata/inbound extdata/outbound
 sudo chmod 770 extdata/work
-sudo chmod 755 extdata
-sudo find extdata -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
+sudo find extdata/inbound -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
 ```
 
 5. Run the primary deterministic smoke path:
@@ -136,7 +136,7 @@ The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
 
 ## Input Files
 
-- The demo uses dated `clients_YYYYMMDD.csv` / `.ok` and `client_transfers_YYYYMMDD.csv` / `.ok` files.
+- The demo uses dated `clients_YYYYMMDD.csv` / `.ok` and `client_transfers_YYYYMMDD.csv` / `.ok` files under `extdata/inbound/`.
 - `.ok` stores the number of data rows only, without the CSV header.
 - Bundled input files and database records are synthetic demo data.
 - Detailed validation and smoke guidance remain in [tests/SMOKE_TEST_RUNBOOK.md](tests/SMOKE_TEST_RUNBOOK.md).
@@ -146,7 +146,9 @@ The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
 - `ops/`: local operational helpers
 - `sql/`: schema objects and loader procedures
 - `tests/`: reset, bootstrap, smoke, and AML demo scripts
-- `extdata/`: synthetic CSV and `.ok` files
+- `extdata/inbound/`: synthetic input CSV and `.ok` files
+- `extdata/outbound/`: generated export files for later spool flows
+- `extdata/work/`: Oracle external-table loader artifacts
 - `docs/adr/`: public architecture and delivery decisions
 
 ## Scope And Boundaries

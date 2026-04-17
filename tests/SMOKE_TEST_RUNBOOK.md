@@ -85,7 +85,7 @@ DEFINE DWH_PASSWORD = '<DWH_PASSWORD>'
 This resets project-specific objects and recreates the `dwh` schema plus current demo objects.
 It is destructive for the local demo schema and should be used only in the local sandbox flow.
 
-## 3. Fix `extdata/work` Permissions
+## 3. Fix `extdata` Permissions
 
 This permission setup is a sandbox compatibility baseline for local Docker bind mounts.
 It is not a production permission model.
@@ -98,15 +98,16 @@ cd <PROJECT_PATH>
 ORACLE_UID=$(docker exec j-kepka-oracle-elt-workflow id -u oracle)
 ORACLE_GID=$(docker exec j-kepka-oracle-elt-workflow id -g oracle)
 
-sudo mkdir -p extdata/work
-sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/work
+sudo mkdir -p extdata/inbound extdata/outbound extdata/work
+sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/outbound extdata/work
+sudo chmod 755 extdata extdata/inbound extdata/outbound
 sudo chmod 770 extdata/work
-sudo chmod 755 extdata
-sudo find extdata -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
+sudo find extdata/inbound -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
 ```
 
 Expected result:
-- Oracle can read dated CSV and `.ok` files in `extdata/`.
+- Oracle can read dated CSV and `.ok` files in `extdata/inbound/`.
+- Oracle can write future export files into `extdata/outbound/`.
 - Oracle can write loader artifacts into `extdata/work/`.
 - The repository remains mounted read-only to `/workspace` inside the container.
 
