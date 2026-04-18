@@ -1,4 +1,4 @@
--- Operational helper: validate persisted load state after running the transfers load.
+-- Operational helper: validate persisted load state after running the client transfers load.
 -- After query-scoped EXTERNAL MODIFY, direct counts from dwh.ext_client_transfers
 -- would reflect the default external-table location, not the last file bound at runtime.
 

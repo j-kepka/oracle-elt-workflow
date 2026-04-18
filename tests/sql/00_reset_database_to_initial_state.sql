@@ -67,6 +67,23 @@ BEGIN
   SELECT COUNT(*)
   INTO l_dir_exists
   FROM dba_directories
+  WHERE directory_name = 'EXT_EXPORT_DIR';
+
+  IF l_dir_exists = 1 THEN
+    EXECUTE IMMEDIATE 'DROP DIRECTORY EXT_EXPORT_DIR';
+    DBMS_OUTPUT.PUT_LINE('Dropped directory EXT_EXPORT_DIR.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Directory EXT_EXPORT_DIR does not exist. Nothing to drop.');
+  END IF;
+END;
+/
+
+DECLARE
+  l_dir_exists NUMBER := 0;
+BEGIN
+  SELECT COUNT(*)
+  INTO l_dir_exists
+  FROM dba_directories
   WHERE directory_name = 'EXT_WORK_DIR';
 
   IF l_dir_exists = 1 THEN

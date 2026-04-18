@@ -22,6 +22,16 @@ This smoke flow is not read-only.
 `94_optional_auto_waiting_checks.sql` does the same for `2026-04-07`.
 Use this flow only in the local demo/sandbox environment.
 
+## Process Order Contract
+
+The default operational order is:
+1. `LOAD_CLIENTS`
+2. `LOAD_CLIENT_TRANSFERS`
+
+Transfer loads depend on the same-day client snapshot.
+Smoke helpers follow that order unless a case explicitly tests a missing dependency, such as `transfers_2026-04-11_manual`.
+The current disabled scheduler object is not the active orchestration model; scheduler or wrapper work is deferred until the full `load -> mart -> spool` workflow exists.
+
 ## 1. Start Oracle Container
 
 Run on the host from the repository root:
@@ -85,7 +95,7 @@ DEFINE DWH_PASSWORD = '<DWH_PASSWORD>'
 This resets project-specific objects and recreates the `dwh` schema plus current demo objects.
 It is destructive for the local demo schema and should be used only in the local sandbox flow.
 
-## 3. Fix `extdata/work` Permissions
+## 3. Fix `extdata` Permissions
 
 This permission setup is a sandbox compatibility baseline for local Docker bind mounts.
 It is not a production permission model.
@@ -98,15 +108,16 @@ cd <PROJECT_PATH>
 ORACLE_UID=$(docker exec j-kepka-oracle-elt-workflow id -u oracle)
 ORACLE_GID=$(docker exec j-kepka-oracle-elt-workflow id -g oracle)
 
-sudo mkdir -p extdata/work
-sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/work
+sudo mkdir -p extdata/inbound extdata/outbound extdata/work
+sudo chown "${ORACLE_UID}:${ORACLE_GID}" extdata/outbound extdata/work
+sudo chmod 755 extdata extdata/inbound extdata/outbound
 sudo chmod 770 extdata/work
-sudo chmod 755 extdata
-sudo find extdata -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
+sudo find extdata/inbound -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
 ```
 
 Expected result:
-- Oracle can read dated CSV and `.ok` files in `extdata/`.
+- Oracle can read dated CSV and `.ok` files in `extdata/inbound/`.
+- Oracle can write future export files into `extdata/outbound/`.
 - Oracle can write loader artifacts into `extdata/work/`.
 - The repository remains mounted read-only to `/workspace` inside the container.
 
@@ -166,12 +177,12 @@ The expected status, reason, and row-count matrix is asserted by `92_manual_smok
 
 ## Script Roles
 
-- `90_manual_smoke_run.sql`: resets covered business dates, then runs the deterministic `MANUAL` smoke flow, including rerun/idempotency steps
+- `90_manual_smoke_run.sql`: resets covered business dates, then runs the deterministic `MANUAL` smoke flow in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, including rerun/idempotency steps
 - `91_manual_smoke_actuals.sql`: shows current DB state per deterministic case
 - `92_manual_smoke_compare.sql`: compares actual DB state with expected outcomes and returns `PASS` or `FAIL`
 - `93_manual_smoke_detail_checks.sql`: shows focused diagnostic selects for key warning and normalization cases
-- `94_optional_auto_waiting_checks.sql`: runs the optional `AUTO` checks for `2026-04-07` with a shared test cutoff (`now + 5 minutes`) and retry every 1 minute
-- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, and runs both loaders
+- `94_optional_auto_waiting_checks.sql`: runs the optional `AUTO` checks for `2026-04-07` in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order with a per-loader test cutoff (`now + 5 minutes` before each loader), retry every 1 minute, and an assertion that both loaders record 5 retries before failing after cutoff
+- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, and runs both loaders in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order
 - `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, and FX seed rows
 
 ## Reading The Output
@@ -193,7 +204,8 @@ The deterministic matrix covers only the `MANUAL` cases.
 The `AUTO` checks stay separate because `2026-04-07` depends on database time relative to the cutoff.
 Current `AUTO` behavior is intentionally lightweight: the procedure retries inside a bounded loop until the run-day `12:00` cutoff.
 This is a temporary bridge for the demo, not a full dispatcher consuming `next_retry_ts`.
-In the optional smoke helper `94_optional_auto_waiting_checks.sql`, that default is intentionally overridden to a shared test cutoff (`now + 5 minutes`) with retry every 1 minute, so the missing-`.ok` path can be observed without waiting until noon.
+In the optional smoke helper `94_optional_auto_waiting_checks.sql`, that default is intentionally overridden to a per-loader test cutoff (`now + 5 minutes` before each loader) with retry every 1 minute, so the missing-`.ok` path can be observed for both loaders without waiting until noon.
+Because the two loaders run sequentially, this helper takes about 10 minutes and asserts that both loaders record 5 retries before failing after cutoff.
 
 ## Scenario Maintenance Note
 

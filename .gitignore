@@ -4,6 +4,8 @@ docs/internal/*
 
 # Oracle external table work artifacts
 extdata/work/
+extdata/outbound/*
+!extdata/outbound/.gitkeep
 *.log
 *.bad
 *.dsc

@@ -26,7 +26,8 @@ Completed:
 
 Current public scope:
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
-- current pre-mart stabilization fix in progress: loader runtime cleanup before `Phase-06 Part 2`, including query-scoped external-file binding and bounded `AUTO` retry behavior for missing `.ok`
+- completed pre-mart stabilization fix: loader runtime cleanup before `Phase-06 Part 2`, including query-scoped external-file binding and bounded `AUTO` retry behavior for missing `.ok`
+- current pre-mart file-layout fix: split local file areas into `extdata/inbound`, `extdata/outbound`, and `extdata/work` before the mart/export path
 
 Planned next inside MVP:
 - `Phase-06 Part 2`: `mart_transfer_aml`, `amount_eur`, and first AML review flags / reason codes

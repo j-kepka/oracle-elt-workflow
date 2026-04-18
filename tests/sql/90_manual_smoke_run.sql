@@ -109,45 +109,45 @@ BEGIN
   BULK COLLECT INTO l_cases
   FROM (
     WITH run_cases AS (
-      SELECT 10 AS run_order, 'clients_2026-03-26_manual' AS case_key, 'LOAD_CLIENTS' AS process_name, DATE '2026-03-26' AS business_date, 'MANUAL' AS run_mode, CAST(NULL AS NUMBER) AS expected_sqlcode FROM dual
+      SELECT 10 AS run_order, 'clients_2026-03-24_manual' AS case_key, 'LOAD_CLIENTS' AS process_name, DATE '2026-03-24' AS business_date, 'MANUAL' AS run_mode, -20114 AS expected_sqlcode FROM dual
       UNION ALL
-      SELECT 20, 'clients_2026-03-25_manual', 'LOAD_CLIENTS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 20, 'transfers_2026-03-24_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-24', 'MANUAL', -20014 FROM dual
       UNION ALL
-      SELECT 30, 'clients_2026-03-28_manual', 'LOAD_CLIENTS', DATE '2026-03-28', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 30, 'clients_2026-03-25_manual', 'LOAD_CLIENTS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 40, 'transfers_2026-03-26_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 40, 'transfers_2026-03-25_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 50, 'transfers_2026-03-25_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 50, 'clients_2026-03-25_manual_rerun', 'LOAD_CLIENTS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 60, 'transfers_2026-03-27_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-27', 'MANUAL', -20015 FROM dual
+      SELECT 60, 'transfers_2026-03-25_manual_rerun', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 70, 'transfers_2026-03-28_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-28', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 70, 'clients_2026-03-26_manual', 'LOAD_CLIENTS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 80, 'transfers_2026-03-24_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-24', 'MANUAL', -20014 FROM dual
+      SELECT 80, 'transfers_2026-03-26_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 90, 'clients_2026-03-27_manual', 'LOAD_CLIENTS', DATE '2026-03-27', 'MANUAL', -20117 FROM dual
+      SELECT 90, 'clients_2026-03-26_manual_rerun', 'LOAD_CLIENTS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 100, 'clients_2026-03-29_manual', 'LOAD_CLIENTS', DATE '2026-03-29', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 100, 'transfers_2026-03-26_manual_rerun', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 110, 'clients_2026-03-24_manual', 'LOAD_CLIENTS', DATE '2026-03-24', 'MANUAL', -20114 FROM dual
+      SELECT 110, 'clients_2026-03-27_manual', 'LOAD_CLIENTS', DATE '2026-03-27', 'MANUAL', -20117 FROM dual
       UNION ALL
-      SELECT 120, 'clients_2026-03-26_manual_rerun', 'LOAD_CLIENTS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 120, 'transfers_2026-03-27_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-27', 'MANUAL', -20015 FROM dual
       UNION ALL
-      SELECT 130, 'clients_2026-03-25_manual_rerun', 'LOAD_CLIENTS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 130, 'clients_2026-03-28_manual', 'LOAD_CLIENTS', DATE '2026-03-28', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 140, 'transfers_2026-03-26_manual_rerun', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-26', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 140, 'transfers_2026-03-28_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-28', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 150, 'transfers_2026-03-25_manual_rerun', 'LOAD_CLIENT_TRANSFERS', DATE '2026-03-25', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 150, 'clients_2026-03-29_manual', 'LOAD_CLIENTS', DATE '2026-03-29', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 160, 'clients_2026-04-09_manual', 'LOAD_CLIENTS', DATE '2026-04-09', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 160, 'clients_2026-04-08_manual', 'LOAD_CLIENTS', DATE '2026-04-08', 'MANUAL', -20110 FROM dual
       UNION ALL
-      SELECT 170, 'clients_2026-04-10_manual', 'LOAD_CLIENTS', DATE '2026-04-10', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 170, 'transfers_2026-04-08_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-04-08', 'MANUAL', -20010 FROM dual
       UNION ALL
-      SELECT 180, 'transfers_2026-04-10_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-04-10', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
+      SELECT 180, 'clients_2026-04-09_manual', 'LOAD_CLIENTS', DATE '2026-04-09', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 190, 'clients_2026-04-08_manual', 'LOAD_CLIENTS', DATE '2026-04-08', 'MANUAL', -20110 FROM dual
+      SELECT 190, 'clients_2026-04-10_manual', 'LOAD_CLIENTS', DATE '2026-04-10', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
-      SELECT 200, 'transfers_2026-04-08_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-04-08', 'MANUAL', -20010 FROM dual
+      SELECT 200, 'transfers_2026-04-10_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-04-10', 'MANUAL', CAST(NULL AS NUMBER) FROM dual
       UNION ALL
       SELECT 210, 'transfers_2026-04-11_manual', 'LOAD_CLIENT_TRANSFERS', DATE '2026-04-11', 'MANUAL', -20018 FROM dual
       UNION ALL
@@ -167,6 +167,10 @@ BEGIN
   FOR i IN 1 .. l_cases.COUNT LOOP
     IF l_cases(i).process_name = 'LOAD_CLIENT_TRANSFERS' THEN
       l_transfer_dates(TO_CHAR(l_cases(i).business_date, 'YYYY-MM-DD')) := 1;
+      -- Transfer cases depend on a same-day client snapshot. Clean the parent date too
+      -- so dependency-negative smoke cases remain deterministic on a reused sandbox.
+      l_client_dates(TO_CHAR(l_cases(i).business_date, 'YYYY-MM-DD')) := 1;
+      l_ctl_keys('LOAD_CLIENTS|' || TO_CHAR(l_cases(i).business_date, 'YYYY-MM-DD')) := 1;
     ELSIF l_cases(i).process_name = 'LOAD_CLIENTS' THEN
       l_client_dates(TO_CHAR(l_cases(i).business_date, 'YYYY-MM-DD')) := 1;
     END IF;

@@ -1,8 +1,8 @@
--- External table mapped to a dated file in extdata, for example client_transfers_20260326.csv
+-- External table mapped to a dated file in extdata/inbound, for example client_transfers_20260326.csv
 -- RECNUM keeps the physical file line number, so the first data row is 2 when SKIP 1 is used.
 -- Loader failures are treated as technical errors and must stop the run immediately.
 -- Prerequisite (run as SYSTEM once):
---   CREATE OR REPLACE DIRECTORY EXT_DIR AS '/opt/oracle/extdata';
+--   CREATE OR REPLACE DIRECTORY EXT_DIR AS '/opt/oracle/extdata/inbound';
 --   CREATE OR REPLACE DIRECTORY EXT_WORK_DIR AS '/opt/oracle/extdata/work';
 --   GRANT READ ON DIRECTORY EXT_DIR TO dwh;
 --   GRANT READ, WRITE ON DIRECTORY EXT_WORK_DIR TO dwh;
