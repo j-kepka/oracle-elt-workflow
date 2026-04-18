@@ -116,6 +116,9 @@ Optional follow-up checks:
 @/workspace/tests/sql/94_optional_auto_waiting_checks.sql
 ```
 
+`94_optional_auto_waiting_checks.sql` overrides `AUTO` to use a per-loader `now + 5 minutes` cutoff with a 1-minute retry interval.
+Because it checks `LOAD_CLIENTS` and `LOAD_CLIENT_TRANSFERS` sequentially, this optional helper takes about 10 minutes.
+
 Optional AML demo dataset checks:
 
 ```sql
@@ -131,8 +134,12 @@ The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
 - The main objective smoke result is returned by `92_manual_smoke_compare.sql`.
 - The deterministic `MANUAL` matrix is the default verification path for the current demo flow.
 - The AML demo dataset path is separate from the legacy deterministic matrix.
+- The intended operational order is `LOAD_CLIENTS` before `LOAD_CLIENT_TRANSFERS` for each `business_date`.
+  Transfer loads depend on the same-day client snapshot, and smoke/ops helpers follow that order unless a case explicitly tests a missing dependency.
 - `AUTO` currently uses a bounded retry loop inside the load procedure until the run-day `12:00` cutoff.
   This is a temporary demo bridge, not a full scheduler or dispatcher.
+- The disabled scheduler object in the bootstrap is not the active orchestration model.
+  Scheduler or wrapper work is deferred until the full `load -> mart -> spool` workflow exists.
 
 ## Input Files
 
