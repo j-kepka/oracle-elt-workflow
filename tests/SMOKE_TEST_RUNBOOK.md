@@ -164,6 +164,12 @@ Run:
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
 ```
 
+Optional mart FX coverage check:
+
+```sql
+@/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
+```
+
 `10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for this AML demo path.
 The FX rows used by the AML demo are inserted by `95_load_aml_demo_dataset.sql`.
 
@@ -182,8 +188,9 @@ The expected status, reason, and row-count matrix is asserted by `92_manual_smok
 - `92_manual_smoke_compare.sql`: compares actual DB state with expected outcomes and returns `PASS` or `FAIL`
 - `93_manual_smoke_detail_checks.sql`: shows focused diagnostic selects for key warning and normalization cases
 - `94_optional_auto_waiting_checks.sql`: runs the optional `AUTO` checks for `2026-04-07` in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order with a per-loader test cutoff (`now + 5 minutes` before each loader), retry every 1 minute, and an assertion that both loaders record 5 retries before failing after cutoff
-- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, and runs both loaders in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order
-- `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, and FX seed rows
+- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, runs both loaders in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, and builds `mart_transfer_aml`
+- `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, FX seed rows, and AML mart foundation
+- `97_optional_mart_fx_coverage_checks.sql`: verifies that `prc_build_mart_transfer_aml` fails with `MISSING_FX_RATES` when a required FX reference row is missing, then restores the seed and rebuilds the mart
 
 ## Reading The Output
 

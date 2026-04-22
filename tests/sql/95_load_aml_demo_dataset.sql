@@ -12,6 +12,9 @@ SET PAGESIZE 100;
 
 PROMPT Loading AML demo dataset for 2026-04-15...
 
+DELETE FROM dwh.mart_transfer_aml
+WHERE business_date = DATE '2026-04-15';
+
 DELETE FROM dwh.core_client_transfers
 WHERE business_date = DATE '2026-04-15';
 
@@ -31,7 +34,7 @@ DELETE FROM dwh.stg_clients
 WHERE business_date = DATE '2026-04-15';
 
 DELETE FROM dwh.ctl_process_run
-WHERE process_name IN ('LOAD_CLIENTS', 'LOAD_CLIENT_TRANSFERS')
+WHERE process_name IN ('LOAD_CLIENTS', 'LOAD_CLIENT_TRANSFERS', 'BUILD_MART_TRANSFER_AML')
   AND business_date = DATE '2026-04-15';
 
 COMMIT;
@@ -45,6 +48,11 @@ BEGIN
   );
 
   dwh.prc_load_client_transfers(
+    p_date     => DATE '2026-04-15',
+    p_run_mode => 'MANUAL'
+  );
+
+  dwh.prc_build_mart_transfer_aml(
     p_date     => DATE '2026-04-15',
     p_run_mode => 'MANUAL'
   );

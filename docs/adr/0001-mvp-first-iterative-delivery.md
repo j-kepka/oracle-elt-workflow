@@ -2,46 +2,33 @@
 
 - Status: Accepted
 - Date: 2026-03-25
+- Last reviewed: 2026-04-22
 
 ## Context
-A working version is needed early, then improved step by step.
+A working demo is needed early, then improved through small, reviewable delivery phases.
+The project is intentionally scoped as a local Oracle ELT sandbox rather than a production deployment baseline.
 
 ## Decision
-MVP-first delivery is used, followed by small delivery phases that can be published through separate GitHub PRs.
+Delivery follows an MVP-first sequence:
+1. Establish a working `external -> stage -> core` flow.
+2. Add `business_date`, dated files, validation, rejects, and `.ok` readiness checks.
+3. Add a join-ready `clients` snapshot beside `client_transfers`.
+4. Add repeatable smoke validation.
+5. Add AML-oriented input context, mart logic, and export/spool output.
 
-Order:
-1. Working external -> stage -> core flow.
-2. Basic scheduler run.
-3. Then add `business_date`, dated input files, validations, and rejects.
-4. Then add `.ok` readiness checks, current-status logging, and a small cutoff rule.
-5. Then add business transformations.
+## Rationale And Consequences
+- Early phases keep the repository runnable and easy to inspect.
+- Each phase adds one visible capability instead of a broad unfinished platform.
+- The design can show batch-processing discipline without requiring a full orchestration framework.
+- Operational hardening is added only where it supports the demo scope.
 
-## Why this approach
-- Early visible progress.
-- Easier review in small increments.
-- Lower risk of over-engineering at the start.
+## Scope Boundary
+The practical MVP ends after `Phase-07`, with a thin `load -> mart -> spool` flow.
+`Phase-08` is reserved for optional `MVP+` inbound hardening.
+`Phase-09` is reserved for optional `MVP++` observability and operations polish.
 
-## Current note
-Current setup runs in local `dev/sandbox`.
-Current scope supports dated CSV loads for `client_transfers` and `clients`, matching `.ok` ready files, visible rejects, one current process-status row per `process_name` and `business_date`, a same-day join from transfers to the client snapshot, and a simple client reporting status (`ACTIVE` / `ARCHIVED`) kept inside the snapshot model.
-Phase labels in this ADR describe delivery stages rather than GitHub pull request numbers.
-For portfolio/demo purposes, the practical MVP scope is treated as complete after `Phase-07`.
-`Phase-08` is the current `MVP+` bucket and `Phase-09` is the current `MVP++` bucket.
-Advanced hardening is planned for later optional phases.
-This MVP is not a production deployment baseline; any production-like reuse requires a separate security and infrastructure review.
+AML, GIIF-like naming, and Polish-domain references are simplified demo context only.
+They are not legal guidance, regulatory interpretation, or a claim of production compliance.
 
-## Rough Public Phase Map
-This project is being built in a few small delivery phases.
-
-- `Phase-01` is the first simple flow: external table -> stage -> core, plus a basic scheduler job.
-- `Phase-02` adds `business_date`, dated input files, basic validation, and a reject table.
-- `Phase-03` adds a small control file like `.ok`, a simple current-status table, and a cutoff rule for `AUTO` mode.
-- `Phase-04` extends the same load pattern to a first join-ready `clients` snapshot alongside `client_transfers`.
-- `Phase-05` adds a repeatable matrix-based smoke flow for the current load baseline.
-- `Phase-06` extends the current input model toward AML and builds the first AML review-ready mart in two smaller steps.
-- `Phase-07` adds the final spool/export step and the thin sequential `load -> mart -> spool` closeout for practical MVP completion.
-- `Phase-08` can be used for light inbound hardening, mainly small reference dictionaries replacing hardcoded validation lists.
-- `Phase-09` is optional post-MVP work around richer ETL observability and selected operational hardening.
-
-This is only a rough public map.
-Some details may still move a bit between later PRs.
+Plain tables are sufficient for the current synthetic datasets.
+Date-based partitioning and deeper operational hardening are deferred until real volume, reuse, or post-MVP scope justifies them.

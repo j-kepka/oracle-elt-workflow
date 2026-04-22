@@ -49,9 +49,11 @@ CONNECT dwh/"&&DWH_PASSWORD"@&&PDB_CONNECT_STRING
 @&&WORKSPACE_ROOT/sql/13_create_core_clients.sql
 @&&WORKSPACE_ROOT/sql/06_create_core_client_transfers.sql
 @&&WORKSPACE_ROOT/sql/07_create_ref_fx_rate_daily.sql
+@&&WORKSPACE_ROOT/sql/15_create_mart_transfer_aml.sql
 @&&WORKSPACE_ROOT/sql/10_create_control_structures.sql
 @&&WORKSPACE_ROOT/sql/04_create_load_client_transfers_procedure.sql
 @&&WORKSPACE_ROOT/sql/14_create_load_clients_procedure.sql
+@&&WORKSPACE_ROOT/sql/16_create_build_mart_transfer_aml_procedure.sql
 @&&WORKSPACE_ROOT/sql/05_create_load_client_transfers_scheduler_job.sql
 
 WHENEVER OSERROR CONTINUE NONE;
