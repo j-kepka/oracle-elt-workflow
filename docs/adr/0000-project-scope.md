@@ -2,30 +2,33 @@
 
 - Status: Accepted
 - Date: 2026-03-25
+- Last reviewed: 2026-04-22
 
-## Goal
-Build a small Oracle ELT workflow and grow it in small delivery phases.
+## Context
+A small, inspectable Oracle ELT project is needed for portfolio/demo use.
+The project should demonstrate batch ingestion, validation, reject handling, process status tracking, and an AML-oriented downstream path without becoming a production template.
 
-## Environment
-Current environment: local `dev/sandbox`.
+## Decision
+The public project scope is a local `dev/sandbox` Oracle ELT workflow.
+The practical MVP ends after `Phase-07`, when the flow reaches `client + transfer -> AML mart -> spool`.
 
-## In Scope (MVP)
+MVP scope includes:
 - Load dated CSV files with Oracle external table.
 - Use a small `.ok` ready file for inbound readiness and row-count checks.
 - Run one selected `business_date`.
 - Validate rows and keep rejects visible.
 - Move data external -> stage -> core.
 - Track one current process status row per `process_name` and `business_date`.
-- Run load manually (procedure) and optionally by scheduler.
+- Build an AML-oriented mart and final spool/export path by the end of `Phase-07`.
 
-## Out of Scope (for now)
-- Production secrets and infrastructure details.
-- Private runbooks and planning notes.
-- Full production hardening in MVP phase.
-- Any production-like reuse without a separate security and infrastructure audit.
+## Rationale And Consequences
+- The scope stays small enough to inspect in a local sandbox.
+- Public documentation can present a stable demo story without exposing working notes or private planning.
+- The project remains a portfolio/demo baseline only.
+- Any production-like reuse requires separate security, infrastructure, operations, and data-governance review.
 
-## Public Source of Truth
-- `README.md`: public entry point, quick start, and current repository summary.
-- `docs/ROADMAP.md`: public phase map, current delivery phase, and MVP boundary.
-- ADR files in `docs/adr/`: public scope and decision rationale.
-- If public wording drifts, implemented repository behavior is confirmed by the SQL objects and smoke tests, and the public docs should be realigned to match.
+## Scope Boundary
+- `Phase-01` -> `Phase-07`: practical MVP.
+- `Phase-08`: optional `MVP+` inbound hardening.
+- `Phase-09`: optional `MVP++` observability and operations polish.
+- Production deployment, production secrets, production infrastructure, and full operational hardening are outside the MVP.

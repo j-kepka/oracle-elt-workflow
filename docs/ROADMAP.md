@@ -1,19 +1,20 @@
 # Public Roadmap
 
-This document is the simplified public roadmap for the repository.
-It is intentionally shorter and less detailed than the internal planning notes.
-Phase labels below describe delivery stages rather than GitHub pull request numbers.
-The published sequence is kept contiguous; if an earlier placeholder idea is merged or deferred, later public phase numbers are normalized instead of leaving gaps.
+This document is the public phase snapshot for the repository.
+Phase labels describe delivery stages rather than publication or review numbers.
+The published sequence is kept contiguous so the public roadmap remains easy to read.
 
 ## Scope Boundary
 
+This repository is a local demo/sandbox portfolio project, not a production deployment baseline.
 For portfolio/demo purposes, the practical MVP scope ends after `Phase-07`.
 
 - `Phase-01` -> `Phase-07`: practical MVP scope
-- `Phase-08`: `MVP+`
-- `Phase-09`: `MVP++`
+- `Phase-08`: `MVP+` post-MVP inbound hardening
+- `Phase-09`: `MVP++` optional observability and operations polish
 
-This means the repository can be considered demo-complete without implementing every later hardening item planned beyond `Phase-07`.
+The repository can be considered demo-complete at MVP level after `Phase-07`.
+Later hardening and operational polish remain optional extensions.
 
 ## Current Status
 
@@ -23,19 +24,19 @@ Completed:
 - `Phase-03`: `.ok` ready files, `AUTO` / `MANUAL`, cutoff handling, current-status control table
 - `Phase-04`: join-ready `clients` snapshot, same-day FK from transfers to clients, extra demo AML helper fields, duplicate-to-reject handling
 - `Phase-05`: repeatable matrix-based smoke flow with deterministic compare helpers
-
-Current public scope:
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
-- completed pre-mart stabilization fix: loader runtime cleanup before `Phase-06 Part 2`, including query-scoped external-file binding and bounded `AUTO` retry behavior for missing `.ok`
-- current pre-mart file-layout fix: split local file areas into `extdata/inbound`, `extdata/outbound`, and `extdata/work` before the mart/export path
+- supporting runtime and file-layout stabilization for the mart/export path
+
+Active MVP scope:
+- `Phase-06 Part 2`: AML mart foundation with `mart_transfer_aml`, `amount_eur`, and FX coverage checks for currencies present on the business date
 
 Planned next inside MVP:
-- `Phase-06 Part 2`: `mart_transfer_aml`, `amount_eur`, and first AML review flags / reason codes
+- `Phase-06 Part 2` closeout: first AML review flags and reason codes
 - `Phase-07`: export/spool flow
 
 Optional after MVP:
 - `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
-- `Phase-09`: richer ETL run logs, DQ observability, and selected operational hardening
+- `Phase-09`: richer ETL run logs, a shared PL/SQL utility package for repeated loader/status helpers, DQ observability, and selected operational hardening
 
 ## What The MVP Already Demonstrates
 
@@ -50,14 +51,16 @@ Optional after MVP:
 - duplicate business keys rejected before the `core` refresh
 - AML-oriented client context fields flowing through the `clients` pipeline
 - `transfer_title` flowing through the `client_transfers` pipeline
-- manual `ref_fx_rate_daily` support for later EUR normalization
+- manual `ref_fx_rate_daily` support for EUR normalization
+- first AML mart foundation with `mart_transfer_aml` and `amount_eur`
+- FX coverage validation for the AML mart build
 - dedicated AML demo dataset and validation helpers
 - rebuild-based smoke testing for success, warning, and failure cases
 
 ## Notes
 
 - This roadmap is intentionally public-facing and stable.
-- Detailed task breakdown, internal tradeoffs, and private planning remain in internal docs.
+- Detailed task breakdown, delivery tradeoffs, and private planning are outside this public roadmap.
 - The project is a local demo/sandbox portfolio project, not a production deployment baseline.
 - Input files and database records are synthetic demo data; fields that may resemble banking or customer identifiers are placeholders only.
 - Deep real-world validation, such as IBAN checksum rules or identifier checksum validation, is intentionally out of scope for the demo unless explicitly called out by a later hardening phase.

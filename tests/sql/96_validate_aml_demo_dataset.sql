@@ -1,5 +1,6 @@
 -- Validates the AML demo dataset.
--- Verifies the new client input fields, transfer_title, and manual FX seed path.
+-- Verifies the new client input fields, transfer_title, manual FX seed path,
+-- and the AML mart foundation.
 
 SET VERIFY OFF;
 SET FEEDBACK OFF;
@@ -54,6 +55,40 @@ WITH checks AS (
   FROM dual
   UNION ALL
   SELECT
+    'MART_CTL',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.ctl_process_run
+        WHERE process_name = 'BUILD_MART_TRANSFER_AML'
+          AND business_date = DATE '2026-04-15'
+          AND run_mode = 'MANUAL'
+          AND status = 'DONE'
+          AND reason_code = 'MART_BUILD_DONE'
+          AND expected_row_count = 20
+          AND stage_row_count = 0
+          AND reject_row_count = 0
+          AND core_row_count = 20
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected status=DONE reason=MART_BUILD_DONE expected=20 mart=20'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_ROW_COUNT',
+    CASE
+      WHEN (
+        SELECT COUNT(*)
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+      ) = 20 THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected mart_transfer_aml rows=20 for 2026-04-15'
+  FROM dual
+  UNION ALL
+  SELECT
     'FX_ROW_COUNT',
     CASE
       WHEN (
@@ -77,6 +112,80 @@ WITH checks AS (
       ELSE 'FAIL'
     END,
     'expected distinct transfer currencies=5 in core_client_transfers'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_AMOUNT_EUR_EUR',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500101
+          AND amount = 450.00
+          AND currency_code = 'EUR'
+          AND fx_rate_to_eur = 1
+          AND amount_eur = 450.00
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected EUR amount to stay unchanged in amount_eur'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_AMOUNT_EUR_USD',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500108
+          AND amount = 20000.00
+          AND currency_code = 'USD'
+          AND amount_eur = 18420.44
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected USD amount_eur from ref_fx_rate_daily'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_AMOUNT_EUR_CZK',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500109
+          AND amount = 900000.00
+          AND currency_code = 'CZK'
+          AND amount_eur = 36062.72
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected CZK amount_eur with unit_count conversion'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_CLIENT_JOIN',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500113
+          AND client_id = 9506
+          AND client_type = 'BUSINESS'
+          AND full_name = 'Gringotts Trade Sp z o.o.'
+          AND country_code = 'PL'
+          AND transfer_country_code = 'GB'
+          AND kyc_status = 'REVIEW'
+          AND risk_score = 910
+          AND relationship_purpose_code = 'BUSINESS_PAYMENTS'
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected mart row to carry same-day client snapshot attributes'
   FROM dual
   UNION ALL
   SELECT
@@ -204,6 +313,24 @@ SELECT
   country_code,
   transfer_title
 FROM dwh.core_client_transfers
+WHERE business_date = DATE '2026-04-15'
+ORDER BY transfer_id;
+
+PROMPT
+PROMPT AML demo mart snapshot:
+
+SELECT
+  transfer_id,
+  client_id,
+  client_type,
+  amount,
+  currency_code,
+  fx_rate_to_eur,
+  amount_eur,
+  kyc_status,
+  risk_score,
+  relationship_purpose_code
+FROM dwh.mart_transfer_aml
 WHERE business_date = DATE '2026-04-15'
 ORDER BY transfer_id;
 

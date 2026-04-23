@@ -1,8 +1,8 @@
 # oracle-elt-workflow
 
-Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and AML-oriented demo extensions.
+Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and an AML-oriented mart foundation.
 
-The current public scope covers `Phase-06 Part 1`, the completed pre-mart loader stabilization fix, and the current pre-mart file-layout fix described in [docs/ROADMAP.md](docs/ROADMAP.md).
+The current public scope has progressed into `Phase-06 Part 2` with the AML mart foundation described in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What The Repository Covers
 
@@ -12,6 +12,8 @@ The current public scope covers `Phase-06 Part 1`, the completed pre-mart loader
 - same-day dependency from transfers to client snapshots
 - repeatable deterministic smoke validation
 - dedicated AML demo dataset with richer transfer amounts, multiple currencies, and manual FX seed support
+- `mart_transfer_aml` as the first AML-oriented mart layer
+- `amount_eur` normalization with FX coverage checks for currencies present on the business date
 
 The documented run path targets a local Docker-based demo/sandbox environment.
 
@@ -126,20 +128,45 @@ Optional AML demo dataset checks:
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
 ```
 
+Optional mart FX coverage check:
+
+```sql
+@/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
+```
+
 `10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for the AML demo path.
 The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
+The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, and checks missing-FX behavior through `MISSING_FX_RATES`.
 
 ## Verification Notes
 
 - The main objective smoke result is returned by `92_manual_smoke_compare.sql`.
 - The deterministic `MANUAL` matrix is the default verification path for the current demo flow.
 - The AML demo dataset path is separate from the legacy deterministic matrix.
+- `95_load_aml_demo_dataset.sql` loads the AML demo data and builds `mart_transfer_aml`.
+- `96_validate_aml_demo_dataset.sql` validates the mart row count, client-transfer join, and EUR-normalized amounts.
+- `97_optional_mart_fx_coverage_checks.sql` verifies that missing FX reference data blocks the mart build before restoring the demo FX seed.
 - The intended operational order is `LOAD_CLIENTS` before `LOAD_CLIENT_TRANSFERS` for each `business_date`.
   Transfer loads depend on the same-day client snapshot, and smoke/ops helpers follow that order unless a case explicitly tests a missing dependency.
 - `AUTO` currently uses a bounded retry loop inside the load procedure until the run-day `12:00` cutoff.
   This is a temporary demo bridge, not a full scheduler or dispatcher.
 - The disabled scheduler object in the bootstrap is not the active orchestration model.
   Scheduler or wrapper work is deferred until the full `load -> mart -> spool` workflow exists.
+
+## Domain Notes
+
+This repository uses AML as a demo domain.
+AML means anti-money laundering.
+The checks and flags in this project are simplified engineering examples, not legal, regulatory, or compliance advice.
+
+FX reference data in the demo is modeled as manually maintained daily exchange-rate data.
+The `MANUAL_NBP_TABLE_A` seed label refers to NBP, the National Bank of Poland (`Narodowy Bank Polski`), whose published exchange-rate tables are a familiar Polish reference point.
+The repository does not download official NBP data or claim regulatory-grade FX sourcing.
+
+Future AML review fields may use names such as `above_threshold_art72_flag` and `suspicion_art74_flag`.
+Those names are inspired by Polish AML reporting concepts: threshold-based transaction reporting and suspicion-based reporting.
+`GIIF` refers to the Polish Financial Intelligence Unit, formally the General Inspector of Financial Information (`Generalny Inspektor Informacji Finansowej`).
+In this repository, `GIIF-like` means a simplified reporting-style data shape inspired by that domain, not an official GIIF submission format.
 
 ## Input Files
 
@@ -162,8 +189,8 @@ The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
 
 - This repository is a local MVP/demo setup, not a production deployment baseline.
 - Any production-like reuse should start with an independent security, infrastructure, operations, and data-governance review.
-- Practical demo scope ends before `Phase-09`.
-- `Phase-01` -> `Phase-08` define the demo-facing scope; later phases remain optional post-MVP work.
+- Practical MVP scope ends after `Phase-07`.
+- `Phase-08` and `Phase-09` remain optional post-MVP work.
 
 ## Further Reading
 
