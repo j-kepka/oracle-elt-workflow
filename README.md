@@ -1,8 +1,8 @@
 # oracle-elt-workflow
 
-Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and an AML-oriented mart foundation.
+Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and an AML-oriented mart with first review-oriented classification fields.
 
-The current public scope has progressed into `Phase-06 Part 2` with the AML mart foundation described in [docs/ROADMAP.md](docs/ROADMAP.md).
+The current public scope has progressed through `Phase-06 Part 2` with `mart_transfer_aml`, EUR normalization, first AML review flags, reason codes, and `report_type_candidate` described in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What The Repository Covers
 
@@ -14,6 +14,7 @@ The current public scope has progressed into `Phase-06 Part 2` with the AML mart
 - dedicated AML demo dataset with richer transfer amounts, multiple currencies, and manual FX seed support
 - `mart_transfer_aml` as the first AML-oriented mart layer
 - `amount_eur` normalization with FX coverage checks for currencies present on the business date
+- first AML review flags, reason codes, and `report_type_candidate` inside `mart_transfer_aml`
 
 The documented run path targets a local Docker-based demo/sandbox environment.
 
@@ -144,7 +145,7 @@ The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, and checks
 - The deterministic `MANUAL` matrix is the default verification path for the current demo flow.
 - The AML demo dataset path is separate from the legacy deterministic matrix.
 - `95_load_aml_demo_dataset.sql` loads the AML demo data and builds `mart_transfer_aml`.
-- `96_validate_aml_demo_dataset.sql` validates the mart row count, client-transfer join, and EUR-normalized amounts.
+- `96_validate_aml_demo_dataset.sql` validates the mart row count, client-transfer join, EUR-normalized amounts, and the first AML review-rule outputs.
 - `97_optional_mart_fx_coverage_checks.sql` verifies that missing FX reference data blocks the mart build before restoring the demo FX seed.
 - The intended operational order is `LOAD_CLIENTS` before `LOAD_CLIENT_TRANSFERS` for each `business_date`.
   Transfer loads depend on the same-day client snapshot, and smoke/ops helpers follow that order unless a case explicitly tests a missing dependency.
@@ -157,16 +158,18 @@ The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, and checks
 
 This repository uses AML as a demo domain.
 AML means anti-money laundering.
-The checks and flags in this project are simplified engineering examples, not legal, regulatory, or compliance advice.
+Polish-domain names are used only to give the demo a realistic business context.
+They do not mean that the repository implements official Polish AML reporting, legal interpretation, or production compliance requirements.
+The checks, flags, report candidates, and exports in this project are simplified engineering examples, not legal, regulatory, or compliance advice.
 
 FX reference data in the demo is modeled as manually maintained daily exchange-rate data.
-The `MANUAL_NBP_TABLE_A` seed label refers to NBP, the National Bank of Poland (`Narodowy Bank Polski`), whose published exchange-rate tables are a familiar Polish reference point.
-The repository does not download official NBP data or claim regulatory-grade FX sourcing.
+The `MANUAL_NBP_TABLE_A` seed label refers to NBP, the National Bank of Poland (`Narodowy Bank Polski`), which publishes official exchange-rate tables in Poland.
+The repository does not download official NBP data and does not claim regulatory-grade FX sourcing.
 
-Future AML review fields may use names such as `above_threshold_art72_flag` and `suspicion_art74_flag`.
-Those names are inspired by Polish AML reporting concepts: threshold-based transaction reporting and suspicion-based reporting.
 `GIIF` refers to the Polish Financial Intelligence Unit, formally the General Inspector of Financial Information (`Generalny Inspektor Informacji Finansowej`).
-In this repository, `GIIF-like` means a simplified reporting-style data shape inspired by that domain, not an official GIIF submission format.
+At a high level, GIIF is the Polish authority associated with receiving and processing AML-related information and notifications from obligated institutions.
+In this repository, `GIIF-like` means a simplified reporting-style data shape inspired by that domain, not an official GIIF submission format and not a guarantee of meeting Polish AML reporting requirements.
+Names such as `above_threshold_art72_flag`, `suspicion_art74_flag`, and `report_type_candidate` are simplified demo labels inspired by threshold-based and suspicion-based AML reporting paths.
 
 ## Input Files
 

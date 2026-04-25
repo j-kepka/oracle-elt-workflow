@@ -240,6 +240,12 @@ BEGIN
     currency_code,
     fx_rate_to_eur,
     amount_eur,
+    above_threshold_art72_flag,
+    suspicion_art74_flag,
+    aml_review_flag,
+    aml_reason_code,
+    aml_reason_details,
+    report_type_candidate,
     fx_rate_source,
     fx_published_date,
     transfer_ts,
@@ -255,62 +261,151 @@ BEGIN
     source_of_funds_declared,
     source_of_wealth_declared
   )
-  SELECT
-    trn.business_date,
-    trn.transfer_id,
-    trn.client_id,
-    cli.client_type,
-    cli.full_name,
-    cli.country_code,
-    trn.country_code AS transfer_country_code,
-    trn.source_account,
-    trn.target_account,
-    trn.amount,
-    trn.currency_code,
-    CASE
-      WHEN trn.currency_code = 'EUR' THEN 1
-      ELSE ROUND(
-        (src_fx.mid_rate_pln / src_fx.unit_count)
-        / (eur_fx.mid_rate_pln / eur_fx.unit_count),
-        8
-      )
-    END AS fx_rate_to_eur,
-    CASE
-      WHEN trn.currency_code = 'EUR' THEN ROUND(trn.amount, 2)
-      ELSE ROUND(
-        trn.amount
-        * (
+  WITH mart_source AS (
+    SELECT
+      trn.business_date,
+      trn.transfer_id,
+      trn.client_id,
+      cli.client_type,
+      cli.full_name,
+      cli.country_code,
+      trn.country_code AS transfer_country_code,
+      trn.source_account,
+      trn.target_account,
+      trn.amount,
+      trn.currency_code,
+      CASE
+        WHEN trn.currency_code = 'EUR' THEN 1
+        ELSE ROUND(
           (src_fx.mid_rate_pln / src_fx.unit_count)
-          / (eur_fx.mid_rate_pln / eur_fx.unit_count)
-        ),
-        2
-      )
-    END AS amount_eur,
-    src_fx.rate_source,
-    src_fx.published_date,
-    trn.transfer_ts,
-    trn.transfer_status,
-    trn.channel,
-    trn.transfer_title,
-    cli.pep_flag,
-    cli.high_risk_flag,
-    cli.kyc_status,
-    cli.risk_score,
-    cli.relationship_purpose_code,
-    cli.expected_activity_level,
-    cli.source_of_funds_declared,
-    cli.source_of_wealth_declared
-  FROM dwh.core_client_transfers trn
-  JOIN dwh.core_clients cli
-    ON cli.business_date = trn.business_date
-   AND cli.client_id = trn.client_id
-  JOIN dwh.ref_fx_rate_daily src_fx
-    ON src_fx.business_date = trn.business_date
-   AND src_fx.currency_code = trn.currency_code
-  JOIN dwh.ref_fx_rate_daily eur_fx
-    ON eur_fx.business_date = trn.business_date
-   AND eur_fx.currency_code = 'EUR'
-  WHERE trn.business_date = l_business_date;
+          / (eur_fx.mid_rate_pln / eur_fx.unit_count),
+          8
+        )
+      END AS fx_rate_to_eur,
+      CASE
+        WHEN trn.currency_code = 'EUR' THEN ROUND(trn.amount, 2)
+        ELSE ROUND(
+          trn.amount
+          * (
+            (src_fx.mid_rate_pln / src_fx.unit_count)
+            / (eur_fx.mid_rate_pln / eur_fx.unit_count)
+          ),
+          2
+        )
+      END AS amount_eur,
+      src_fx.rate_source AS fx_rate_source,
+      src_fx.published_date AS fx_published_date,
+      trn.transfer_ts,
+      trn.transfer_status,
+      trn.channel,
+      trn.transfer_title,
+      cli.pep_flag,
+      cli.high_risk_flag,
+      cli.kyc_status,
+      cli.risk_score,
+      cli.relationship_purpose_code,
+      cli.expected_activity_level,
+      cli.source_of_funds_declared,
+      cli.source_of_wealth_declared
+    FROM dwh.core_client_transfers trn
+    JOIN dwh.core_clients cli
+      ON cli.business_date = trn.business_date
+     AND cli.client_id = trn.client_id
+    JOIN dwh.ref_fx_rate_daily src_fx
+      ON src_fx.business_date = trn.business_date
+     AND src_fx.currency_code = trn.currency_code
+    JOIN dwh.ref_fx_rate_daily eur_fx
+      ON eur_fx.business_date = trn.business_date
+     AND eur_fx.currency_code = 'EUR'
+    WHERE trn.business_date = l_business_date
+  ),
+  classified_mart AS (
+    SELECT
+      ms.*,
+      CASE
+        WHEN ms.amount_eur > 15000 THEN 1
+        ELSE 0
+      END AS above_threshold_art72_flag,
+      CASE
+        WHEN ms.pep_flag = 1 THEN 1
+        WHEN ms.high_risk_flag = 1
+             AND NVL(ms.kyc_status, '<<NULL>>') IN ('REVIEW', 'LIMITED', 'MANUAL_CHECK') THEN 1
+        WHEN NVL(ms.risk_score, -1) >= 900 THEN 1
+        ELSE 0
+      END AS suspicion_art74_flag
+    FROM mart_source ms
+  )
+  SELECT
+    cm.business_date,
+    cm.transfer_id,
+    cm.client_id,
+    cm.client_type,
+    cm.full_name,
+    cm.country_code,
+    cm.transfer_country_code,
+    cm.source_account,
+    cm.target_account,
+    cm.amount,
+    cm.currency_code,
+    cm.fx_rate_to_eur,
+    cm.amount_eur,
+    cm.above_threshold_art72_flag,
+    cm.suspicion_art74_flag,
+    CASE
+      WHEN cm.above_threshold_art72_flag = 1 OR cm.suspicion_art74_flag = 1 THEN 1
+      ELSE 0
+    END AS aml_review_flag,
+    CASE
+      WHEN cm.above_threshold_art72_flag = 1 AND cm.suspicion_art74_flag = 1 THEN 'ART72_AND_ART74'
+      WHEN cm.above_threshold_art72_flag = 1 THEN 'ART72_THRESHOLD'
+      WHEN cm.pep_flag = 1 THEN 'ART74_PEP'
+      WHEN cm.high_risk_flag = 1
+           AND NVL(cm.kyc_status, '<<NULL>>') IN ('REVIEW', 'LIMITED', 'MANUAL_CHECK')
+        THEN 'ART74_HIGH_RISK_KYC'
+      WHEN NVL(cm.risk_score, -1) >= 900 THEN 'ART74_RISK_SCORE'
+      ELSE NULL
+    END AS aml_reason_code,
+    RTRIM(
+      CASE
+        WHEN cm.above_threshold_art72_flag = 1
+          THEN 'amount_eur=' || TO_CHAR(cm.amount_eur, 'FM9999999990D00', 'NLS_NUMERIC_CHARACTERS=''.,''')
+            || ' > 15000; '
+      END
+      || CASE
+           WHEN cm.pep_flag = 1 THEN 'pep_flag=1; '
+         END
+      || CASE
+           WHEN cm.high_risk_flag = 1
+                AND NVL(cm.kyc_status, '<<NULL>>') IN ('REVIEW', 'LIMITED', 'MANUAL_CHECK')
+             THEN 'high_risk_flag=1; kyc_status=' || cm.kyc_status || '; '
+         END
+      || CASE
+           WHEN NVL(cm.risk_score, -1) >= 900
+             THEN 'risk_score=' || TO_CHAR(cm.risk_score) || ' >= 900; '
+         END,
+      '; '
+    ) AS aml_reason_details,
+    CASE
+      WHEN cm.above_threshold_art72_flag = 1 AND cm.suspicion_art74_flag = 1 THEN 'ART72_AND_ART74'
+      WHEN cm.above_threshold_art72_flag = 1 THEN 'ART72_THRESHOLD'
+      WHEN cm.suspicion_art74_flag = 1 THEN 'ART74_SUSPICION'
+      ELSE NULL
+    END AS report_type_candidate,
+    cm.fx_rate_source,
+    cm.fx_published_date,
+    cm.transfer_ts,
+    cm.transfer_status,
+    cm.channel,
+    cm.transfer_title,
+    cm.pep_flag,
+    cm.high_risk_flag,
+    cm.kyc_status,
+    cm.risk_score,
+    cm.relationship_purpose_code,
+    cm.expected_activity_level,
+    cm.source_of_funds_declared,
+    cm.source_of_wealth_declared
+  FROM classified_mart cm;
 
   l_mart_rows_loaded := SQL%ROWCOUNT;
 

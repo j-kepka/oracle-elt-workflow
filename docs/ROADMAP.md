@@ -10,7 +10,7 @@ This repository is a local demo/sandbox portfolio project, not a production depl
 For portfolio/demo purposes, the practical MVP scope ends after `Phase-07`.
 
 - `Phase-01` -> `Phase-07`: practical MVP scope
-- `Phase-08`: `MVP+` post-MVP inbound hardening
+- `Phase-08`: `MVP+` post-MVP inbound hardening and selected maintainability polish
 - `Phase-09`: `MVP++` optional observability and operations polish
 
 The repository can be considered demo-complete at MVP level after `Phase-07`.
@@ -25,18 +25,15 @@ Completed:
 - `Phase-04`: join-ready `clients` snapshot, same-day FK from transfers to clients, extra demo AML helper fields, duplicate-to-reject handling
 - `Phase-05`: repeatable matrix-based smoke flow with deterministic compare helpers
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
+- `Phase-06 Part 2`: review-ready AML mart with `mart_transfer_aml`, `amount_eur`, FX coverage checks, first AML review flags and reason codes, and `report_type_candidate`
 - supporting runtime and file-layout stabilization for the mart/export path
 
-Active MVP scope:
-- `Phase-06 Part 2`: AML mart foundation with `mart_transfer_aml`, `amount_eur`, and FX coverage checks for currencies present on the business date
-
 Planned next inside MVP:
-- `Phase-06 Part 2` closeout: first AML review flags and reason codes
 - `Phase-07`: export/spool flow
 
 Optional after MVP:
-- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists
-- `Phase-09`: richer ETL run logs, a shared PL/SQL utility package for repeated loader/status helpers, DQ observability, and selected operational hardening
+- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists, plus selected maintainability polish such as a shared PL/SQL utility package
+- `Phase-09`: richer ETL run logs, DQ observability, and selected operational hardening
 
 ## What The MVP Already Demonstrates
 
@@ -52,7 +49,8 @@ Optional after MVP:
 - AML-oriented client context fields flowing through the `clients` pipeline
 - `transfer_title` flowing through the `client_transfers` pipeline
 - manual `ref_fx_rate_daily` support for EUR normalization
-- first AML mart foundation with `mart_transfer_aml` and `amount_eur`
+- first AML mart with `mart_transfer_aml`, `amount_eur`, and first review-oriented classification fields
+- first AML review flags, reason codes, and `report_type_candidate`
 - FX coverage validation for the AML mart build
 - dedicated AML demo dataset and validation helpers
 - rebuild-based smoke testing for success, warning, and failure cases

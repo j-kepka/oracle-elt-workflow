@@ -15,6 +15,12 @@ CREATE TABLE dwh.mart_transfer_aml (
   currency_code                 CHAR(3 CHAR)       NOT NULL,
   fx_rate_to_eur                NUMBER(18,8)       NOT NULL,
   amount_eur                    NUMBER(18,2)       NOT NULL,
+  above_threshold_art72_flag    NUMBER(1)          NOT NULL,
+  suspicion_art74_flag          NUMBER(1)          NOT NULL,
+  aml_review_flag               NUMBER(1)          NOT NULL,
+  aml_reason_code               VARCHAR2(100 CHAR),
+  aml_reason_details            VARCHAR2(1000 CHAR),
+  report_type_candidate         VARCHAR2(30 CHAR),
   fx_rate_source                VARCHAR2(30 CHAR)  NOT NULL,
   fx_published_date             DATE,
   transfer_ts                   TIMESTAMP          NOT NULL,
@@ -34,7 +40,14 @@ CREATE TABLE dwh.mart_transfer_aml (
   CONSTRAINT pk_mart_transfer_aml PRIMARY KEY (business_date, transfer_id),
   CONSTRAINT chk_mart_transfer_aml_amount CHECK (amount >= 0),
   CONSTRAINT chk_mart_transfer_aml_amount_eur CHECK (amount_eur >= 0),
-  CONSTRAINT chk_mart_transfer_aml_fx_rate CHECK (fx_rate_to_eur > 0)
+  CONSTRAINT chk_mart_transfer_aml_fx_rate CHECK (fx_rate_to_eur > 0),
+  CONSTRAINT chk_mart_transfer_aml_art72 CHECK (above_threshold_art72_flag IN (0, 1)),
+  CONSTRAINT chk_mart_transfer_aml_art74 CHECK (suspicion_art74_flag IN (0, 1)),
+  CONSTRAINT chk_mart_transfer_aml_review CHECK (aml_review_flag IN (0, 1)),
+  CONSTRAINT chk_mart_transfer_aml_report_type CHECK (
+    report_type_candidate IS NULL
+    OR report_type_candidate IN ('ART72_THRESHOLD', 'ART74_SUSPICION', 'ART72_AND_ART74')
+  )
 );
 
 CREATE INDEX dwh.ix_mart_transfer_aml_bd_client

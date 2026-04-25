@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-25
-- Last reviewed: 2026-04-22
+- Last reviewed: 2026-04-23
 
 ## Context
 A working demo is needed early, then improved through small, reviewable delivery phases.
@@ -14,7 +14,7 @@ Delivery follows an MVP-first sequence:
 2. Add `business_date`, dated files, validation, rejects, and `.ok` readiness checks.
 3. Add a join-ready `clients` snapshot beside `client_transfers`.
 4. Add repeatable smoke validation.
-5. Add AML-oriented input context, mart logic, and export/spool output.
+5. Add AML-oriented input context, mart logic, first review classification, and export/spool output.
 
 ## Rationale And Consequences
 - Early phases keep the repository runnable and easy to inspect.
@@ -24,7 +24,7 @@ Delivery follows an MVP-first sequence:
 
 ## Scope Boundary
 The practical MVP ends after `Phase-07`, with a thin `load -> mart -> spool` flow.
-`Phase-08` is reserved for optional `MVP+` inbound hardening.
+`Phase-08` is reserved for optional `MVP+` inbound hardening and selected maintainability polish.
 `Phase-09` is reserved for optional `MVP++` observability and operations polish.
 
 AML, GIIF-like naming, and Polish-domain references are simplified demo context only.

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-25
-- Last reviewed: 2026-04-22
+- Last reviewed: 2026-04-23
 
 ## Context
 A small, inspectable Oracle ELT project is needed for portfolio/demo use.
@@ -29,6 +29,6 @@ MVP scope includes:
 
 ## Scope Boundary
 - `Phase-01` -> `Phase-07`: practical MVP.
-- `Phase-08`: optional `MVP+` inbound hardening.
+- `Phase-08`: optional `MVP+` inbound hardening and selected maintainability polish.
 - `Phase-09`: optional `MVP++` observability and operations polish.
 - Production deployment, production secrets, production infrastructure, and full operational hardening are outside the MVP.
