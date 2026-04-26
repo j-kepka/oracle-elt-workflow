@@ -1,6 +1,6 @@
 -- Validates the AML demo dataset.
 -- Verifies the new client input fields, transfer_title, manual FX seed path,
--- and the AML mart foundation.
+-- and the AML mart review-rule closeout.
 
 SET VERIFY OFF;
 SET FEEDBACK OFF;
@@ -189,6 +189,109 @@ WITH checks AS (
   FROM dual
   UNION ALL
   SELECT
+    'MART_CLEAR_BASELINE',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500101
+          AND above_threshold_art72_flag = 0
+          AND suspicion_art74_flag = 0
+          AND aml_review_flag = 0
+          AND aml_reason_code IS NULL
+          AND aml_reason_details IS NULL
+          AND report_type_candidate IS NULL
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected non-review mart row to keep all AML review fields empty'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_ART72_THRESHOLD',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500107
+          AND above_threshold_art72_flag = 1
+          AND suspicion_art74_flag = 0
+          AND aml_review_flag = 1
+          AND aml_reason_code = 'ART72_THRESHOLD'
+          AND report_type_candidate = 'ART72_THRESHOLD'
+          AND aml_reason_details LIKE 'amount_eur=18000.00 > 15000%'
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected transfer 500107 to be selected only by the ART72 amount threshold'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_ART74_PEP',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500103
+          AND above_threshold_art72_flag = 0
+          AND suspicion_art74_flag = 1
+          AND aml_review_flag = 1
+          AND aml_reason_code = 'ART74_PEP'
+          AND report_type_candidate = 'ART74_SUSPICION'
+          AND aml_reason_details LIKE '%pep_flag=1%'
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected transfer 500103 to be selected by the PEP suspicion rule'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_ART74_HIGH_RISK_KYC',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500110
+          AND above_threshold_art72_flag = 0
+          AND suspicion_art74_flag = 1
+          AND aml_review_flag = 1
+          AND aml_reason_code = 'ART74_HIGH_RISK_KYC'
+          AND report_type_candidate = 'ART74_SUSPICION'
+          AND aml_reason_details LIKE '%high_risk_flag=1%'
+          AND aml_reason_details LIKE '%kyc_status=REVIEW%'
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected transfer 500110 to be selected by the high-risk plus KYC review rule'
+  FROM dual
+  UNION ALL
+  SELECT
+    'MART_ART72_AND_ART74',
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM dwh.mart_transfer_aml
+        WHERE business_date = DATE '2026-04-15'
+          AND transfer_id = 500113
+          AND above_threshold_art72_flag = 1
+          AND suspicion_art74_flag = 1
+          AND aml_review_flag = 1
+          AND aml_reason_code = 'ART72_AND_ART74'
+          AND report_type_candidate = 'ART72_AND_ART74'
+          AND aml_reason_details LIKE '%amount_eur=%'
+          AND aml_reason_details LIKE '%high_risk_flag=1%'
+          AND aml_reason_details LIKE '%risk_score=910 >= 900%'
+      ) THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected transfer 500113 to be selected by both ART72 and ART74 rules'
+  FROM dual
+  UNION ALL
+  SELECT
     'CLIENT_9503_FIELDS',
     CASE
       WHEN EXISTS (
@@ -327,6 +430,11 @@ SELECT
   currency_code,
   fx_rate_to_eur,
   amount_eur,
+  above_threshold_art72_flag,
+  suspicion_art74_flag,
+  aml_review_flag,
+  aml_reason_code,
+  report_type_candidate,
   kyc_status,
   risk_score,
   relationship_purpose_code
