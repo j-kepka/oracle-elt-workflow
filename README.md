@@ -1,8 +1,10 @@
 # oracle-elt-workflow
 
-Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, and an AML-oriented mart with first review-oriented classification fields.
+Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ingestion with validation, reject handling, control-table status tracking, an AML-oriented mart, and a GIIF-like outbound report spool.
 
-The current public scope has progressed through `Phase-06 Part 2` with `mart_transfer_aml`, EUR normalization, first AML review flags, reason codes, and `report_type_candidate` described in [docs/ROADMAP.md](docs/ROADMAP.md).
+This repository demonstrates data engineering, ELT design, data quality checks, auditability, and reporting-oriented data modeling in a realistic synthetic financial-domain scenario.
+
+The current public scope has progressed through `Phase-07 Part 1` with `aml_report_spool`, outbound CSV/OK publication, and the spool contract described in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What The Repository Covers
 
@@ -15,6 +17,8 @@ The current public scope has progressed through `Phase-06 Part 2` with `mart_tra
 - `mart_transfer_aml` as the first AML-oriented mart layer
 - `amount_eur` normalization with FX coverage checks for currencies present on the business date
 - first AML review flags, reason codes, and `report_type_candidate` inside `mart_transfer_aml`
+- `aml_report_spool` as a stable GIIF-like export contract derived from the mart
+- outbound `aml_report_spool_YYYYMMDD.csv` and `.ok` publication after successful spool build
 
 The documented run path targets a local Docker-based demo/sandbox environment.
 
@@ -135,9 +139,16 @@ Optional mart FX coverage check:
 @/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
 ```
 
+Optional AML report spool/export checks:
+
+```sql
+@/workspace/tests/sql/98_build_aml_report_spool.sql
+@/workspace/tests/sql/99_validate_aml_report_spool.sql
+```
+
 `10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for the AML demo path.
 The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
-The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, and checks missing-FX behavior through `MISSING_FX_RATES`.
+The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, checks missing-FX behavior through `MISSING_FX_RATES`, and can generate the `aml_report_spool` outbound files.
 
 ## Verification Notes
 
@@ -147,8 +158,12 @@ The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, and checks
 - `95_load_aml_demo_dataset.sql` loads the AML demo data and builds `mart_transfer_aml`.
 - `96_validate_aml_demo_dataset.sql` validates the mart row count, client-transfer join, EUR-normalized amounts, and the first AML review-rule outputs.
 - `97_optional_mart_fx_coverage_checks.sql` verifies that missing FX reference data blocks the mart build before restoring the demo FX seed.
+- `98_build_aml_report_spool.sql` builds `aml_report_spool` and writes outbound CSV/OK files for the AML demo date.
+- `99_validate_aml_report_spool.sql` validates the spool row count, publication gate, report type candidates, due dates, exported client context, and outbound file contract.
 - The intended operational order is `LOAD_CLIENTS` before `LOAD_CLIENT_TRANSFERS` for each `business_date`.
   Transfer loads depend on the same-day client snapshot, and smoke/ops helpers follow that order unless a case explicitly tests a missing dependency.
+- `aml_report_spool` publication requires `DONE` upstream statuses for client load, transfer load, and mart build.
+  Upstream `WARNING` remains valid for mart review, but it is not treated as publishable for the final spool.
 - `AUTO` currently uses a bounded retry loop inside the load procedure until the run-day `12:00` cutoff.
   This is a temporary demo bridge, not a full scheduler or dispatcher.
 - The disabled scheduler object in the bootstrap is not the active orchestration model.
@@ -184,7 +199,7 @@ Names such as `above_threshold_art72_flag`, `suspicion_art74_flag`, and `report_
 - `sql/`: schema objects and loader procedures
 - `tests/`: reset, bootstrap, smoke, and AML demo scripts
 - `extdata/inbound/`: synthetic input CSV and `.ok` files
-- `extdata/outbound/`: generated export files for later spool flows
+- `extdata/outbound/`: generated AML report spool CSV and `.ok` files
 - `extdata/work/`: Oracle external-table loader artifacts
 - `docs/adr/`: public architecture and delivery decisions
 

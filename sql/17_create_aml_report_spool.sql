@@ -1,0 +1,61 @@
+-- Stable AML report spool contract built from mart_transfer_aml.
+-- The table is rerunnable per business_date and is the source for outbound files.
+
+CREATE TABLE dwh.aml_report_spool (
+  business_date                 DATE                NOT NULL,
+  report_id                     VARCHAR2(40 CHAR)   NOT NULL,
+  report_run_ts                 TIMESTAMP           NOT NULL,
+  report_type_candidate         VARCHAR2(30 CHAR)   NOT NULL,
+  report_due_date               DATE                NOT NULL,
+  transfer_id                   NUMBER(10)          NOT NULL,
+  client_id                     NUMBER(10)          NOT NULL,
+  client_type                   VARCHAR2(20 CHAR)   NOT NULL,
+  full_name                     VARCHAR2(200 CHAR)  NOT NULL,
+  date_of_birth                 DATE,
+  document_id                   VARCHAR2(100 CHAR),
+  registration_no               VARCHAR2(50 CHAR),
+  tax_id                        VARCHAR2(100 CHAR),
+  address_line_1                VARCHAR2(200 CHAR)  NOT NULL,
+  city                          VARCHAR2(100 CHAR)  NOT NULL,
+  postal_code                   VARCHAR2(20 CHAR)   NOT NULL,
+  country_code                  CHAR(2 CHAR)        NOT NULL,
+  phone_number                  VARCHAR2(50 CHAR),
+  email                         VARCHAR2(255 CHAR),
+  source_account                VARCHAR2(34 CHAR)   NOT NULL,
+  target_account                VARCHAR2(34 CHAR)   NOT NULL,
+  amount                        NUMBER(14,2)        NOT NULL,
+  currency_code                 CHAR(3 CHAR)        NOT NULL,
+  amount_eur                    NUMBER(18,2)        NOT NULL,
+  transfer_ts                   TIMESTAMP           NOT NULL,
+  transfer_status               VARCHAR2(20 CHAR)   NOT NULL,
+  channel                       VARCHAR2(20 CHAR)   NOT NULL,
+  transfer_country_code         CHAR(2 CHAR)        NOT NULL,
+  transfer_title                VARCHAR2(255 CHAR),
+  pep_flag                      NUMBER(1)           NOT NULL,
+  high_risk_flag                NUMBER(1)           NOT NULL,
+  kyc_status                    VARCHAR2(30 CHAR),
+  risk_score                    NUMBER(4),
+  relationship_purpose_code     VARCHAR2(50 CHAR),
+  source_of_funds_declared      VARCHAR2(255 CHAR),
+  source_of_wealth_declared     VARCHAR2(255 CHAR),
+  above_threshold_art72_flag    NUMBER(1)           NOT NULL,
+  suspicion_art74_flag          NUMBER(1)           NOT NULL,
+  aml_review_flag               NUMBER(1)           NOT NULL,
+  aml_reason_code               VARCHAR2(100 CHAR)  NOT NULL,
+  aml_reason_details            VARCHAR2(1000 CHAR) NOT NULL,
+  created_ts                    TIMESTAMP           DEFAULT SYSTIMESTAMP NOT NULL,
+  updated_ts                    TIMESTAMP           DEFAULT SYSTIMESTAMP NOT NULL,
+  CONSTRAINT pk_aml_report_spool PRIMARY KEY (business_date, report_id),
+  CONSTRAINT uq_aml_report_spool_transfer UNIQUE (business_date, transfer_id),
+  CONSTRAINT chk_aml_report_spool_amount CHECK (amount >= 0),
+  CONSTRAINT chk_aml_report_spool_amount_eur CHECK (amount_eur >= 0),
+  CONSTRAINT chk_aml_report_spool_art72 CHECK (above_threshold_art72_flag IN (0, 1)),
+  CONSTRAINT chk_aml_report_spool_art74 CHECK (suspicion_art74_flag IN (0, 1)),
+  CONSTRAINT chk_aml_report_spool_review CHECK (aml_review_flag = 1),
+  CONSTRAINT chk_aml_report_spool_report_type CHECK (
+    report_type_candidate IN ('ART72_THRESHOLD', 'ART74_SUSPICION', 'ART72_AND_ART74')
+  )
+);
+
+CREATE INDEX dwh.ix_aml_report_spool_bd_client
+  ON dwh.aml_report_spool (business_date, client_id);

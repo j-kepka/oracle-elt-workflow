@@ -26,10 +26,11 @@ Completed:
 - `Phase-05`: repeatable matrix-based smoke flow with deterministic compare helpers
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
 - `Phase-06 Part 2`: review-ready AML mart with `mart_transfer_aml`, `amount_eur`, FX coverage checks, first AML review flags and reason codes, and `report_type_candidate`
+- `Phase-07 Part 1`: GIIF-like `aml_report_spool`, outbound CSV/OK publication, and spool validation helpers
 - supporting runtime and file-layout stabilization for the mart/export path
 
 Planned next inside MVP:
-- `Phase-07`: export/spool flow
+- `Phase-07 Part 2`: thin sequential orchestration and MVP closeout
 
 Optional after MVP:
 - `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists, plus selected maintainability polish such as a shared PL/SQL utility package
@@ -51,6 +52,8 @@ Optional after MVP:
 - manual `ref_fx_rate_daily` support for EUR normalization
 - first AML mart with `mart_transfer_aml`, `amount_eur`, and first review-oriented classification fields
 - first AML review flags, reason codes, and `report_type_candidate`
+- GIIF-like `aml_report_spool` generated from review-selected mart rows
+- outbound CSV and `.ok` export contract for the AML spool
 - FX coverage validation for the AML mart build
 - dedicated AML demo dataset and validation helpers
 - rebuild-based smoke testing for success, warning, and failure cases
