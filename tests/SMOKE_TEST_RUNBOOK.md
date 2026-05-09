@@ -117,7 +117,7 @@ sudo find extdata/inbound -maxdepth 1 -type f \( -name 'client_transfers_*.csv' 
 
 Expected result:
 - Oracle can read dated CSV and `.ok` files in `extdata/inbound/`.
-- Oracle can write future export files into `extdata/outbound/`.
+- Oracle can write AML report spool export files into `extdata/outbound/`.
 - Oracle can write loader artifacts into `extdata/work/`.
 - The repository remains mounted read-only to `/workspace` inside the container.
 
@@ -170,6 +170,13 @@ Optional mart FX coverage check:
 @/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
 ```
 
+Optional AML report spool/export checks:
+
+```sql
+@/workspace/tests/sql/98_build_aml_report_spool.sql
+@/workspace/tests/sql/99_validate_aml_report_spool.sql
+```
+
 `10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for this AML demo path.
 The FX rows used by the AML demo are inserted by `95_load_aml_demo_dataset.sql`.
 
@@ -191,6 +198,8 @@ The expected status, reason, and row-count matrix is asserted by `92_manual_smok
 - `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, runs both loaders in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, and builds `mart_transfer_aml`
 - `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, FX seed rows, and AML mart foundation
 - `97_optional_mart_fx_coverage_checks.sql`: verifies that `prc_build_mart_transfer_aml` fails with `MISSING_FX_RATES` when a required FX reference row is missing, then restores the seed and rebuilds the mart
+- `98_build_aml_report_spool.sql`: builds `aml_report_spool` for the AML demo date and writes `aml_report_spool_YYYYMMDD.csv` plus `.ok` to `extdata/outbound/`
+- `99_validate_aml_report_spool.sql`: validates the spool publication gate, report type candidates, report due dates, selected client context fields, CSV line count, and `.ok` row count
 
 ## Reading The Output
 
