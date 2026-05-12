@@ -56,7 +56,9 @@ CONNECT dwh/"&&DWH_PASSWORD"@&&PDB_CONNECT_STRING
 @&&WORKSPACE_ROOT/sql/14_create_load_clients_procedure.sql
 @&&WORKSPACE_ROOT/sql/16_create_build_mart_transfer_aml_procedure.sql
 @&&WORKSPACE_ROOT/sql/18_create_build_aml_report_spool_procedure.sql
+@&&WORKSPACE_ROOT/sql/19_create_run_aml_workflow_procedure.sql
 @&&WORKSPACE_ROOT/sql/05_create_load_client_transfers_scheduler_job.sql
+@&&WORKSPACE_ROOT/sql/20_create_run_aml_workflow_scheduler_job.sql
 
 WHENEVER OSERROR CONTINUE NONE;
 WHENEVER SQLERROR CONTINUE NONE;
