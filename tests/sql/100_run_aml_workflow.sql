@@ -1,5 +1,5 @@
--- Loads the dedicated AML demo dataset.
--- Uses a dedicated AML date instead of the legacy deterministic smoke matrix.
+-- Runs the dedicated AML workflow procedure for the AML demo date.
+-- This helper starts from a clean 2026-04-15 demo state.
 
 WHENEVER OSERROR EXIT FAILURE;
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
@@ -7,10 +7,10 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE;
 SET SERVEROUTPUT ON;
 SET VERIFY OFF;
 SET FEEDBACK OFF;
-SET LINESIZE 220;
-SET PAGESIZE 100;
+SET LINESIZE 260;
+SET PAGESIZE 120;
 
-PROMPT Loading AML demo dataset for 2026-04-15...
+PROMPT Running AML workflow for 2026-04-15...
 
 DELETE FROM dwh.aml_report_spool
 WHERE business_date = DATE '2026-04-15';
@@ -38,11 +38,11 @@ WHERE business_date = DATE '2026-04-15';
 
 DELETE FROM dwh.ctl_process_run
 WHERE process_name IN (
+    'RUN_AML_WORKFLOW',
     'LOAD_CLIENTS',
     'LOAD_CLIENT_TRANSFERS',
     'BUILD_MART_TRANSFER_AML',
-    'BUILD_AML_REPORT_SPOOL',
-    'RUN_AML_WORKFLOW'
+    'BUILD_AML_REPORT_SPOOL'
   )
   AND business_date = DATE '2026-04-15';
 
@@ -51,21 +51,11 @@ COMMIT;
 @/workspace/tests/sql/11_seed_ref_fx_rate_daily.sql
 
 BEGIN
-  dwh.prc_load_clients(
-    p_date     => DATE '2026-04-15',
-    p_run_mode => 'MANUAL'
-  );
-
-  dwh.prc_load_client_transfers(
-    p_date     => DATE '2026-04-15',
-    p_run_mode => 'MANUAL'
-  );
-
-  dwh.prc_build_mart_transfer_aml(
+  dwh.prc_run_aml_workflow(
     p_date     => DATE '2026-04-15',
     p_run_mode => 'MANUAL'
   );
 END;
 /
 
-PROMPT AML demo dataset load completed.
+PROMPT AML workflow completed.
