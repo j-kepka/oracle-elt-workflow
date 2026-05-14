@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-25
-- Last reviewed: 2026-04-23
+- Last reviewed: 2026-05-12
 
 ## Context
 A working demo is needed early, then improved through small, reviewable delivery phases.
@@ -23,7 +23,7 @@ Delivery follows an MVP-first sequence:
 - Operational hardening is added only where it supports the demo scope.
 
 ## Scope Boundary
-The practical MVP ends after `Phase-07`, with a thin `load -> mart -> spool` flow.
+The practical MVP ends after `Phase-07`, with a sequential `load -> mart -> spool` flow.
 `Phase-08` is reserved for optional `MVP+` inbound hardening and selected maintainability polish.
 `Phase-09` is reserved for optional `MVP++` observability and operations polish.
 
