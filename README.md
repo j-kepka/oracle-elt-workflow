@@ -4,7 +4,7 @@ Oracle ELT workflow demo for daily `clients` and `client_transfers` snapshot ing
 
 This repository demonstrates data engineering, ELT design, data quality checks, auditability, and reporting-oriented data modeling in a realistic synthetic financial-domain scenario.
 
-The current public scope has progressed through `Phase-07 Part 1` with `aml_report_spool`, outbound CSV/OK publication, and the spool contract described in [docs/ROADMAP.md](docs/ROADMAP.md).
+The current public scope has progressed through `Phase-07` with `aml_report_spool`, outbound CSV/OK publication, and a sequential `load -> mart -> spool` AML workflow described in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What The Repository Covers
 
@@ -19,6 +19,8 @@ The current public scope has progressed through `Phase-07 Part 1` with `aml_repo
 - first AML review flags, reason codes, and `report_type_candidate` inside `mart_transfer_aml`
 - `aml_report_spool` as a stable GIIF-like export contract derived from the mart
 - outbound `aml_report_spool_YYYYMMDD.csv` and `.ok` publication after successful spool build
+- `RUN_AML_WORKFLOW` as a process-control workflow procedure for `clients -> transfers -> mart -> spool`
+- disabled `DWH.JOB_RUN_AML_WORKFLOW` scheduler job as an Oracle-native runner for the workflow procedure
 
 The documented run path targets a local Docker-based demo/sandbox environment.
 
@@ -94,7 +96,7 @@ sudo chmod 770 extdata/work
 sudo find extdata/inbound -maxdepth 1 -type f \( -name 'client_transfers_*.csv' -o -name 'client_transfers_*.ok' -o -name 'clients_*.csv' -o -name 'clients_*.ok' \) -exec chmod 644 {} \;
 ```
 
-5. Run the primary deterministic smoke path:
+5. Run the end-to-end AML workflow smoke:
 
 ```bash
 docker exec -it j-kepka-oracle-elt-workflow bash
@@ -111,63 +113,33 @@ In `SQL>`:
 ```sql
 CONNECT dwh/"<DWH_PASSWORD>"@//localhost:1521/FREEPDB1
 ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
-@/workspace/tests/sql/90_manual_smoke_run.sql
-@/workspace/tests/sql/92_manual_smoke_compare.sql
-```
-
-Optional follow-up checks:
-
-```sql
-@/workspace/tests/sql/91_manual_smoke_actuals.sql
-@/workspace/tests/sql/93_manual_smoke_detail_checks.sql
-@/workspace/tests/sql/94_optional_auto_waiting_checks.sql
-```
-
-`94_optional_auto_waiting_checks.sql` overrides `AUTO` to use a per-loader `now + 5 minutes` cutoff with a 1-minute retry interval.
-Because it checks `LOAD_CLIENTS` and `LOAD_CLIENT_TRANSFERS` sequentially, this optional helper takes about 10 minutes.
-
-Optional AML demo dataset checks:
-
-```sql
-@/workspace/tests/sql/95_load_aml_demo_dataset.sql
+@/workspace/tests/sql/100_run_aml_workflow.sql
+@/workspace/tests/sql/101_validate_aml_workflow.sql
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
-```
-
-Optional mart FX coverage check:
-
-```sql
-@/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
-```
-
-Optional AML report spool/export checks:
-
-```sql
-@/workspace/tests/sql/98_build_aml_report_spool.sql
 @/workspace/tests/sql/99_validate_aml_report_spool.sql
 ```
 
-`10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for the AML demo path.
-The FX seed used by the AML demo is loaded by `95_load_aml_demo_dataset.sql`.
-The AML demo path builds `mart_transfer_aml`, validates `amount_eur`, checks missing-FX behavior through `MISSING_FX_RATES`, and can generate the `aml_report_spool` outbound files.
+The AML workflow smoke reads the bundled `clients_20260415` and `client_transfers_20260415` input files, builds the AML mart and report spool, and writes `aml_report_spool_20260415.csv/.ok` to `extdata/outbound/`.
+This is the shortest end-to-end check after bootstrap and uses business date `2026-04-15`.
+
+For the full smoke/regression matrix, optional `AUTO` timing check, FX negative coverage, component-level AML checks, and the purpose of each test script, see [tests/SMOKE_TEST_RUNBOOK.md](tests/SMOKE_TEST_RUNBOOK.md).
 
 ## Verification Notes
 
-- The main objective smoke result is returned by `92_manual_smoke_compare.sql`.
-- The deterministic `MANUAL` matrix is the default verification path for the current demo flow.
-- The AML demo dataset path is separate from the legacy deterministic matrix.
-- `95_load_aml_demo_dataset.sql` loads the AML demo data and builds `mart_transfer_aml`.
-- `96_validate_aml_demo_dataset.sql` validates the mart row count, client-transfer join, EUR-normalized amounts, and the first AML review-rule outputs.
-- `97_optional_mart_fx_coverage_checks.sql` verifies that missing FX reference data blocks the mart build before restoring the demo FX seed.
-- `98_build_aml_report_spool.sql` builds `aml_report_spool` and writes outbound CSV/OK files for the AML demo date.
-- `99_validate_aml_report_spool.sql` validates the spool row count, publication gate, report type candidates, due dates, exported client context, and outbound file contract.
+- The Quick Start golden path is the AML end-to-end workflow smoke after bootstrap.
+- The AML workflow result is validated by `101_validate_aml_workflow.sql`, `96_validate_aml_demo_dataset.sql`, and `99_validate_aml_report_spool.sql`.
+- The AML demo dataset path uses business date `2026-04-15` and is separate from the deterministic loader matrix.
+- The workflow helper seeds the demo FX rows used by `mart_transfer_aml`; bootstrap creates `ref_fx_rate_daily` but leaves it empty for local data.
+- Broader local regression evidence, including deterministic `MANUAL` scenarios and optional `AUTO` waiting behavior, is documented in the smoke runbook.
 - The intended operational order is `LOAD_CLIENTS` before `LOAD_CLIENT_TRANSFERS` for each `business_date`.
   Transfer loads depend on the same-day client snapshot, and smoke/ops helpers follow that order unless a case explicitly tests a missing dependency.
 - `aml_report_spool` publication requires `DONE` upstream statuses for client load, transfer load, and mart build.
   Upstream `WARNING` remains valid for mart review, but it is not treated as publishable for the final spool.
 - `AUTO` currently uses a bounded retry loop inside the load procedure until the run-day `12:00` cutoff.
   This is a temporary demo bridge, not a full scheduler or dispatcher.
-- The disabled scheduler object in the bootstrap is not the active orchestration model.
-  Scheduler or wrapper work is deferred until the full `load -> mart -> spool` workflow exists.
+- `DWH.JOB_RUN_AML_WORKFLOW` is installed disabled by default.
+  It invokes `dwh.prc_run_aml_workflow` in `AUTO` mode when manually enabled or run.
+- The older single-loader scheduler object remains disabled and is not the active orchestration path for the AML workflow.
 
 ## Domain Notes
 
@@ -209,6 +181,10 @@ Names such as `above_threshold_art72_flag`, `suspicion_art74_flag`, and `report_
 - Any production-like reuse should start with an independent security, infrastructure, operations, and data-governance review.
 - Practical MVP scope ends after `Phase-07`.
 - `Phase-08` and `Phase-09` remain optional post-MVP work.
+
+Operational workflow note: the current MVP runs load, mart build, and report spool as one sequential demo workflow for a selected `business_date`.
+A production-like AML process would usually separate these steps across the day: morning ingestion and mart refresh, daytime review or approval by compliance/AML users, and an incremental evening export of approved reportable records.
+Approval workflow, case state, incremental export backlog, resend handling, and cancellation handling are intentionally outside this MVP.
 
 ## Further Reading
 

@@ -10,7 +10,7 @@ This repository is a local demo/sandbox portfolio project, not a production depl
 For portfolio/demo purposes, the practical MVP scope ends after `Phase-07`.
 
 - `Phase-01` -> `Phase-07`: practical MVP scope
-- `Phase-08`: `MVP+` post-MVP inbound hardening and selected maintainability polish
+- `Phase-08`: `MVP+` post-MVP maintainability, data-contract hardening, and documentation polish
 - `Phase-09`: `MVP++` optional observability and operations polish
 
 The repository can be considered demo-complete at MVP level after `Phase-07`.
@@ -27,13 +27,15 @@ Completed:
 - `Phase-06 Part 1`: AML-oriented input extension on `clients` and `client_transfers`, manual `ref_fx_rate_daily`, and dedicated AML demo fixture/validation helpers
 - `Phase-06 Part 2`: review-ready AML mart with `mart_transfer_aml`, `amount_eur`, FX coverage checks, first AML review flags and reason codes, and `report_type_candidate`
 - `Phase-07 Part 1`: GIIF-like `aml_report_spool`, outbound CSV/OK publication, and spool validation helpers
+- `Phase-07 Part 2`: AML workflow orchestration through `RUN_AML_WORKFLOW` and disabled scheduler runner `DWH.JOB_RUN_AML_WORKFLOW`
 - supporting runtime and file-layout stabilization for the mart/export path
 
-Planned next inside MVP:
-- `Phase-07 Part 2`: thin sequential orchestration and MVP closeout
+MVP status:
+- `Phase-07` completes the practical MVP scope with `load -> mart -> spool` orchestration.
 
 Optional after MVP:
-- `Phase-08`: lightweight inbound hardening, mainly reference dictionaries replacing hardcoded validation lists, plus selected maintainability polish such as a shared PL/SQL utility package
+- `Phase-08 / MVP+`: maintainability and data-contract polish:
+  shared PL/SQL process utilities, stricter run-mode validation, reference dictionaries replacing selected hardcoded validation lists, and final flow diagrams
 - `Phase-09`: richer ETL run logs, DQ observability, and selected operational hardening
 
 ## What The MVP Already Demonstrates
@@ -54,6 +56,8 @@ Optional after MVP:
 - first AML review flags, reason codes, and `report_type_candidate`
 - GIIF-like `aml_report_spool` generated from review-selected mart rows
 - outbound CSV and `.ok` export contract for the AML spool
+- sequential `RUN_AML_WORKFLOW` orchestration for `clients -> transfers -> AML mart -> report spool`
+- disabled Oracle Scheduler runner for the AML workflow procedure
 - FX coverage validation for the AML mart build
 - dedicated AML demo dataset and validation helpers
 - rebuild-based smoke testing for success, warning, and failure cases

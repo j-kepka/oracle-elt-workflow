@@ -20,6 +20,7 @@ It is not used as runtime input by SQL.
 This smoke flow is not read-only.
 `90_manual_smoke_run.sql` deletes existing `stage`, `reject`, `core`, and `CTL_PROCESS_RUN` rows for the business dates covered by the deterministic matrix before reloading them.
 `94_optional_auto_waiting_checks.sql` does the same for `2026-04-07`.
+`100_run_aml_workflow.sql` resets the AML demo date `2026-04-15` before running the workflow procedure.
 Use this flow only in the local demo/sandbox environment.
 
 ## Process Order Contract
@@ -30,31 +31,32 @@ The default operational order is:
 
 Transfer loads depend on the same-day client snapshot.
 Smoke helpers follow that order unless a case explicitly tests a missing dependency, such as `transfers_2026-04-11_manual`.
-The current disabled scheduler object is not the active orchestration model; scheduler or wrapper work is deferred until the full `load -> mart -> spool` workflow exists.
+The AML workflow procedure runs the full order as:
+1. `LOAD_CLIENTS`
+2. `LOAD_CLIENT_TRANSFERS`
+3. `BUILD_MART_TRANSFER_AML`
+4. `BUILD_AML_REPORT_SPOOL`
+
+`DWH.JOB_RUN_AML_WORKFLOW` is installed disabled by default.
+The smoke helper calls `dwh.prc_run_aml_workflow` directly so the workflow can be validated without enabling a scheduled run.
 
 ## 1. Start Oracle Container
 
-Run on the host from the repository root:
+Set `<PROJECT_PATH>` to the local clone path of this repository, then start Oracle:
 
 ```bash
 cd <PROJECT_PATH>
 ./ops/00_start_oracle_container.sh
 ```
 
-The helper prompts for `ORACLE_PASSWORD`.
-
-Replace `"<PROJECT_PATH>"` with the local path of this repository in every command below.
-
-`<PROJECT_PATH>` is the local path where the repository was cloned, for example:
-- Linux / WSL: `/home/<user>/projects/oracle-elt-workflow`
-- macOS: `/Users/<user>/projects/oracle-elt-workflow`
+The helper prompts for `ORACLE_PASSWORD`, which becomes the Oracle container password.
 
 Startup defaults:
 - container name: `j-kepka-oracle-elt-workflow`
 - volume: `j-kepka-oracle-elt-workflow-data`
 - timezone: `Europe/Berlin`
 
-Override defaults for one run:
+To override defaults for one run, prefix the start command:
 
 ```bash
 ORACLE_TZ='<REGION/CITY>' \
@@ -145,40 +147,114 @@ ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
 @/workspace/tests/sql/92_manual_smoke_compare.sql
 ```
 
-Optional:
+Use this order for loader-level regression evidence:
+- `90_manual_smoke_run.sql` executes the deterministic scenarios and resets covered dates before loading them again.
+- `91_manual_smoke_actuals.sql` exposes the current database state for review.
+- `92_manual_smoke_compare.sql` is the objective `PASS` / `FAIL` gate for the deterministic matrix.
+
+Additional manual detail checks:
 
 ```sql
 @/workspace/tests/sql/93_manual_smoke_detail_checks.sql
+```
+
+Optional time-based `AUTO` check:
+
+```sql
 @/workspace/tests/sql/94_optional_auto_waiting_checks.sql
 ```
 
-## 5. Optional AML Demo Dataset
+This helper validates the `AUTO` missing-ready-file waiting path for `2026-04-07`, where the CSV files exist but the `.ok` files are missing.
+For testability, each loader gets a `now + 5 minutes` cutoff and retries every 1 minute.
+Because `LOAD_CLIENTS` and `LOAD_CLIENT_TRANSFERS` run sequentially, the full check takes about 10 minutes and is expected to finish with `MISSING_OK_AFTER_CUTOFF` after 5 retries per loader.
 
-This AML-focused path is separate from the deterministic legacy smoke matrix.
-It uses a dedicated business date with richer transfer amounts, multiple currencies, extended client AML fields, `transfer_title`, and a simple manual FX seed.
+## 5. AML Demo And End-To-End Workflow Smoke
 
-Run:
+This AML-focused path is separate from the deterministic legacy smoke matrix, but it is part of the main local smoke evidence for the current MVP flow.
+It covers component-level AML checks first, then leaves the database in the final end-to-end `load -> mart -> spool` workflow state through `dwh.prc_run_aml_workflow`.
+
+AML demo data date:
+- `2026-04-15`
+
+Input files:
+- `extdata/inbound/clients_20260415.csv`
+- `extdata/inbound/clients_20260415.ok`
+- `extdata/inbound/client_transfers_20260415.csv`
+- `extdata/inbound/client_transfers_20260415.ok`
+
+Reference seed:
+- `tests/sql/11_seed_ref_fx_rate_daily.sql` seeds `ref_fx_rate_daily` for `2026-04-15`
+
+Expected database outputs for `2026-04-15`:
+- `dwh.core_clients`
+- `dwh.core_client_transfers`
+- `dwh.mart_transfer_aml`
+- `dwh.aml_report_spool`
+- `dwh.ctl_process_run`
+
+Expected outbound files:
+- `extdata/outbound/aml_report_spool_20260415.csv`
+- `extdata/outbound/aml_report_spool_20260415.ok`
+
+Component-level AML helpers can be used when validating individual layers:
 
 ```sql
 @/workspace/tests/sql/95_load_aml_demo_dataset.sql
 @/workspace/tests/sql/96_validate_aml_demo_dataset.sql
 ```
 
-Optional mart FX coverage check:
+Mart FX negative coverage check:
 
 ```sql
 @/workspace/tests/sql/97_optional_mart_fx_coverage_checks.sql
 ```
 
-Optional AML report spool/export checks:
+AML report spool/export checks:
 
 ```sql
 @/workspace/tests/sql/98_build_aml_report_spool.sql
 @/workspace/tests/sql/99_validate_aml_report_spool.sql
 ```
 
+Recommended final AML workflow smoke:
+
+```sql
+@/workspace/tests/sql/100_run_aml_workflow.sql
+@/workspace/tests/sql/101_validate_aml_workflow.sql
+@/workspace/tests/sql/96_validate_aml_demo_dataset.sql
+@/workspace/tests/sql/99_validate_aml_report_spool.sql
+```
+
+When this section is run linearly, run the component-level helpers before the final AML workflow smoke.
+`95_load_aml_demo_dataset.sql` resets the AML demo date and clears the workflow control row, so `100_run_aml_workflow.sql` should be the final state-setting run.
+
+Where to inspect results after the AML workflow smoke:
+
+```sql
+SELECT process_name,
+       status,
+       reason_code,
+       expected_row_count,
+       stage_row_count,
+       reject_row_count,
+       core_row_count,
+       data_file_name,
+       ready_file_name
+FROM dwh.ctl_process_run
+WHERE business_date = DATE '2026-04-15'
+ORDER BY started_ts, process_name;
+
+SELECT COUNT(*) AS mart_rows
+FROM dwh.mart_transfer_aml
+WHERE business_date = DATE '2026-04-15';
+
+SELECT COUNT(*) AS spool_rows
+FROM dwh.aml_report_spool
+WHERE business_date = DATE '2026-04-15';
+```
+
 `10_bootstrap_project_schema.sql` creates `ref_fx_rate_daily`, but it does not seed FX rows for this AML demo path.
-The FX rows used by the AML demo are inserted by `95_load_aml_demo_dataset.sql`.
+The FX rows used by the AML demo are inserted by `95_load_aml_demo_dataset.sql` and by `100_run_aml_workflow.sql`.
 
 Current AML input contract notes:
 - `relationship_purpose_code`: `SALARY`, `SAVINGS`, `REMITTANCE`, `INVESTMENT`, `BUSINESS_PAYMENTS`
@@ -188,18 +264,20 @@ Current AML input contract notes:
 If a custom container name is used, replace `j-kepka-oracle-elt-workflow` with that name.
 The expected status, reason, and row-count matrix is asserted by `92_manual_smoke_compare.sql`.
 
-## Script Roles
+## What Each Script Proves
 
-- `90_manual_smoke_run.sql`: resets covered business dates, then runs the deterministic `MANUAL` smoke flow in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, including rerun/idempotency steps
-- `91_manual_smoke_actuals.sql`: shows current DB state per deterministic case
-- `92_manual_smoke_compare.sql`: compares actual DB state with expected outcomes and returns `PASS` or `FAIL`
-- `93_manual_smoke_detail_checks.sql`: shows focused diagnostic selects for key warning and normalization cases
-- `94_optional_auto_waiting_checks.sql`: runs the optional `AUTO` checks for `2026-04-07` in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order with a per-loader test cutoff (`now + 5 minutes` before each loader), retry every 1 minute, and an assertion that both loaders record 5 retries before failing after cutoff
-- `95_load_aml_demo_dataset.sql`: loads the dedicated AML demo dataset, seeds FX, runs both loaders in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, and builds `mart_transfer_aml`
-- `96_validate_aml_demo_dataset.sql`: validates the AML-oriented input extension, `transfer_title`, FX seed rows, and AML mart foundation
-- `97_optional_mart_fx_coverage_checks.sql`: verifies that `prc_build_mart_transfer_aml` fails with `MISSING_FX_RATES` when a required FX reference row is missing, then restores the seed and rebuilds the mart
-- `98_build_aml_report_spool.sql`: builds `aml_report_spool` for the AML demo date and writes `aml_report_spool_YYYYMMDD.csv` plus `.ok` to `extdata/outbound/`
-- `99_validate_aml_report_spool.sql`: validates the spool publication gate, report type candidates, report due dates, selected client context fields, CSV line count, and `.ok` row count
+- `90_manual_smoke_run.sql`: proves the deterministic loader scenarios can be replayed from a clean state in `LOAD_CLIENTS` -> `LOAD_CLIENT_TRANSFERS` order, including rerun/idempotency behavior.
+- `91_manual_smoke_actuals.sql`: gives a reviewable snapshot of the physical rows and control rows produced by the deterministic scenarios.
+- `92_manual_smoke_compare.sql`: proves the deterministic matrix matches expected status, reason, and row-count outcomes by returning `PASS` or `FAIL`.
+- `93_manual_smoke_detail_checks.sql`: proves important edge details are visible for review, especially warning, normalization, and missing-dependency cases.
+- `94_optional_auto_waiting_checks.sql`: proves the `AUTO` missing-ready-file wait path by retrying each loader every 1 minute until the per-loader `now + 5 minutes` cutoff, then asserting 5 retries and `MISSING_OK_AFTER_CUTOFF`.
+- `95_load_aml_demo_dataset.sql`: proves the AML demo input files and FX seed can load into core tables and build `mart_transfer_aml` at component level.
+- `96_validate_aml_demo_dataset.sql`: proves the AML input extension, `transfer_title`, FX seed rows, mart row counts, EUR normalization, and first review-rule outputs.
+- `97_optional_mart_fx_coverage_checks.sql`: proves the AML mart refuses to build without required FX reference data by raising `MISSING_FX_RATES`, then restores the seed and rebuilds.
+- `98_build_aml_report_spool.sql`: proves the AML report spool component can build publishable rows and write `aml_report_spool_YYYYMMDD.csv` plus `.ok` to `extdata/outbound/`.
+- `99_validate_aml_report_spool.sql`: proves the spool publication gate, report type candidates, report due dates, exported client context, CSV line count, and `.ok` row count.
+- `100_run_aml_workflow.sql`: proves the full AML workflow procedure can run from a clean AML demo date through `LOAD_CLIENTS -> LOAD_CLIENT_TRANSFERS -> BUILD_MART_TRANSFER_AML -> BUILD_AML_REPORT_SPOOL`.
+- `101_validate_aml_workflow.sql`: proves the workflow-level control row, step control rows, disabled scheduler job contract, and outbound file presence.
 
 ## Reading The Output
 
@@ -214,10 +292,13 @@ In `92_manual_smoke_compare.sql`:
 - `FAIL` means at least one checked field differs
 - `mismatch_fields` lists the differing columns
 
-## Deterministic Vs Optional
+## Manual, AML, And AUTO Checks
 
-The deterministic matrix covers only the `MANUAL` cases.
-The `AUTO` checks stay separate because `2026-04-07` depends on database time relative to the cutoff.
+The stable local smoke evidence has two main paths:
+- the deterministic `MANUAL` matrix for loader behavior
+- the AML end-to-end workflow smoke for `2026-04-15`
+
+The `AUTO` checks are the optional time-based path because `2026-04-07` depends on database time relative to the cutoff.
 Current `AUTO` behavior is intentionally lightweight: the procedure retries inside a bounded loop until the run-day `12:00` cutoff.
 This is a temporary bridge for the demo, not a full dispatcher consuming `next_retry_ts`.
 In the optional smoke helper `94_optional_auto_waiting_checks.sql`, that default is intentionally overridden to a per-loader test cutoff (`now + 5 minutes` before each loader) with retry every 1 minute, so the missing-`.ok` path can be observed for both loaders without waiting until noon.
