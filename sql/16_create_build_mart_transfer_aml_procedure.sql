@@ -6,12 +6,13 @@ CREATE OR REPLACE PROCEDURE dwh.prc_build_mart_transfer_aml (
 ) AS
   c_process_name      CONSTANT VARCHAR2(100 CHAR) := 'BUILD_MART_TRANSFER_AML';
   l_business_date     DATE := TRUNC(p_date);
-  l_run_mode          VARCHAR2(10 CHAR) := UPPER(TRIM(p_run_mode));
+  l_run_mode          VARCHAR2(10 CHAR);
   l_attempt_ts        TIMESTAMP;
   l_expected_rows     NUMBER := 0;
   l_mart_rows_loaded  NUMBER := 0;
   l_upstream_ready    NUMBER := 0;
   l_missing_fx_list   VARCHAR2(1000 CHAR);
+  l_input_valid       BOOLEAN := FALSE;
   l_final_status_set  BOOLEAN := FALSE;
 
   PROCEDURE upsert_process_run (
@@ -23,92 +24,35 @@ CREATE OR REPLACE PROCEDURE dwh.prc_build_mart_transfer_aml (
     p_started_ts         IN TIMESTAMP,
     p_finished_ts        IN TIMESTAMP
   ) AS
-    PRAGMA AUTONOMOUS_TRANSACTION;
   BEGIN
-    MERGE INTO dwh.ctl_process_run dst
-    USING (
-      SELECT
-        c_process_name AS process_name,
-        l_business_date AS business_date
-      FROM dual
-    ) src
-    ON (
-      dst.process_name = src.process_name
-      AND dst.business_date = src.business_date
-    )
-    WHEN MATCHED THEN
-      UPDATE SET
-        dst.run_mode = l_run_mode,
-        dst.status = p_status,
-        dst.reason_code = p_reason_code,
-        dst.retry_count = 0,
-        dst.scheduled_for_ts = NVL(dst.scheduled_for_ts, l_attempt_ts),
-        dst.next_retry_ts = NULL,
-        dst.started_ts = p_started_ts,
-        dst.finished_ts = p_finished_ts,
-        dst.expected_row_count = p_expected_row_count,
-        dst.stage_row_count = 0,
-        dst.reject_row_count = 0,
-        dst.core_row_count = p_core_row_count,
-        dst.data_file_name = NULL,
-        dst.ready_file_name = NULL,
-        dst.status_message = p_status_message,
-        dst.updated_ts = SYSTIMESTAMP
-    WHEN NOT MATCHED THEN
-      INSERT (
-        process_name,
-        business_date,
-        run_mode,
-        status,
-        reason_code,
-        retry_count,
-        scheduled_for_ts,
-        next_retry_ts,
-        started_ts,
-        finished_ts,
-        expected_row_count,
-        stage_row_count,
-        reject_row_count,
-        core_row_count,
-        data_file_name,
-        ready_file_name,
-        status_message,
-        created_ts,
-        updated_ts
-      )
-      VALUES (
-        c_process_name,
-        l_business_date,
-        l_run_mode,
-        p_status,
-        p_reason_code,
-        0,
-        l_attempt_ts,
-        NULL,
-        p_started_ts,
-        p_finished_ts,
-        p_expected_row_count,
-        0,
-        0,
-        p_core_row_count,
-        NULL,
-        NULL,
-        p_status_message,
-        SYSTIMESTAMP,
-        SYSTIMESTAMP
-      );
-
-    COMMIT;
+    dwh.pkg_dwh_util.upsert_process_run(
+      p_process_name        => c_process_name,
+      p_business_date       => l_business_date,
+      p_run_mode            => l_run_mode,
+      p_status              => p_status,
+      p_reason_code         => p_reason_code,
+      p_status_message      => p_status_message,
+      p_expected_row_count  => p_expected_row_count,
+      p_stage_row_count     => 0,
+      p_reject_row_count    => 0,
+      p_core_row_count      => p_core_row_count,
+      p_data_file_name      => NULL,
+      p_ready_file_name     => NULL,
+      p_started_ts          => p_started_ts,
+      p_finished_ts         => p_finished_ts,
+      p_scheduled_for_ts    => l_attempt_ts,
+      p_next_retry_ts       => NULL,
+      p_reset_retry_count   => 1
+    );
   END upsert_process_run;
 BEGIN
   l_attempt_ts := SYSTIMESTAMP;
 
-  IF l_run_mode NOT IN ('AUTO', 'MANUAL') THEN
-    RAISE_APPLICATION_ERROR(
-      -20201,
-      'Unsupported run mode ' || NVL(p_run_mode, '<NULL>') || '. Expected AUTO or MANUAL.'
-    );
-  END IF;
+  l_run_mode := dwh.pkg_dwh_util.normalize_run_mode(
+    p_run_mode   => p_run_mode,
+    p_error_code => -20201
+  );
+  l_input_valid := TRUE;
 
   upsert_process_run(
     p_status             => 'PROCESSING',
@@ -463,7 +407,7 @@ EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
 
-    IF NOT l_final_status_set THEN
+    IF l_input_valid AND NOT l_final_status_set THEN
       upsert_process_run(
         p_status             => 'FAILED',
         p_reason_code        => 'UNEXPECTED_ERROR',

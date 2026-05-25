@@ -52,6 +52,7 @@ CONNECT dwh/"&&DWH_PASSWORD"@&&PDB_CONNECT_STRING
 @&&WORKSPACE_ROOT/sql/15_create_mart_transfer_aml.sql
 @&&WORKSPACE_ROOT/sql/17_create_aml_report_spool.sql
 @&&WORKSPACE_ROOT/sql/10_create_control_structures.sql
+@&&WORKSPACE_ROOT/sql/21_create_dwh_util_package.sql
 @&&WORKSPACE_ROOT/sql/04_create_load_client_transfers_procedure.sql
 @&&WORKSPACE_ROOT/sql/14_create_load_clients_procedure.sql
 @&&WORKSPACE_ROOT/sql/16_create_build_mart_transfer_aml_procedure.sql

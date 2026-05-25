@@ -10,7 +10,7 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   c_ext_dir            CONSTANT VARCHAR2(30 CHAR) := 'EXT_DIR';
   c_ext_work_dir       CONSTANT VARCHAR2(30 CHAR) := 'EXT_WORK_DIR';
   l_business_date      DATE := TRUNC(p_date);
-  l_run_mode           VARCHAR2(10 CHAR) := UPPER(TRIM(p_run_mode));
+  l_run_mode           VARCHAR2(10 CHAR);
   l_snapshot_file      VARCHAR2(128 CHAR);
   l_ready_file         VARCHAR2(128 CHAR);
   l_expected_rows      NUMBER := 0;
@@ -24,6 +24,7 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   l_current_ts         TIMESTAMP;
   l_retry_sleep_minutes PLS_INTEGER := GREATEST(1, NVL(p_auto_retry_sleep_minutes, 15));
   l_wait_started       BOOLEAN := FALSE;
+  l_input_valid        BOOLEAN := FALSE;
   l_final_status_set   BOOLEAN := FALSE;
   l_stage_ext_source   VARCHAR2(4000 CHAR);
   l_reject_ext_source  VARCHAR2(4000 CHAR);
@@ -196,82 +197,26 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
     p_next_retry_ts      IN TIMESTAMP,
     p_retry_count_delta  IN NUMBER DEFAULT 0
   ) AS
-    PRAGMA AUTONOMOUS_TRANSACTION;
   BEGIN
-    MERGE INTO dwh.ctl_process_run dst
-    USING (
-      SELECT
-        c_process_name AS process_name,
-        l_business_date AS business_date
-      FROM dual
-    ) src
-    ON (
-      dst.process_name = src.process_name
-      AND dst.business_date = src.business_date
-    )
-    WHEN MATCHED THEN
-      UPDATE SET
-        dst.run_mode = l_run_mode,
-        dst.status = p_status,
-        dst.reason_code = p_reason_code,
-        dst.retry_count = GREATEST(0, NVL(dst.retry_count, 0) + NVL(p_retry_count_delta, 0)),
-        dst.scheduled_for_ts = NVL(dst.scheduled_for_ts, l_attempt_ts),
-        dst.next_retry_ts = p_next_retry_ts,
-        dst.started_ts = p_started_ts,
-        dst.finished_ts = p_finished_ts,
-        dst.expected_row_count = p_expected_row_count,
-        dst.stage_row_count = p_stage_row_count,
-        dst.reject_row_count = p_reject_row_count,
-        dst.core_row_count = p_core_row_count,
-        dst.data_file_name = l_snapshot_file,
-        dst.ready_file_name = l_ready_file,
-        dst.status_message = p_status_message,
-        dst.updated_ts = SYSTIMESTAMP
-    WHEN NOT MATCHED THEN
-      INSERT (
-        process_name,
-        business_date,
-        run_mode,
-        status,
-        reason_code,
-        retry_count,
-        scheduled_for_ts,
-        next_retry_ts,
-        started_ts,
-        finished_ts,
-        expected_row_count,
-        stage_row_count,
-        reject_row_count,
-        core_row_count,
-        data_file_name,
-        ready_file_name,
-        status_message,
-        created_ts,
-        updated_ts
-      )
-      VALUES (
-        c_process_name,
-        l_business_date,
-        l_run_mode,
-        p_status,
-        p_reason_code,
-        GREATEST(0, NVL(p_retry_count_delta, 0)),
-        l_attempt_ts,
-        p_next_retry_ts,
-        p_started_ts,
-        p_finished_ts,
-        p_expected_row_count,
-        p_stage_row_count,
-        p_reject_row_count,
-        p_core_row_count,
-        l_snapshot_file,
-        l_ready_file,
-        p_status_message,
-        SYSTIMESTAMP,
-        SYSTIMESTAMP
-      );
-
-    COMMIT;
+    dwh.pkg_dwh_util.upsert_process_run(
+      p_process_name        => c_process_name,
+      p_business_date       => l_business_date,
+      p_run_mode            => l_run_mode,
+      p_status              => p_status,
+      p_reason_code         => p_reason_code,
+      p_status_message      => p_status_message,
+      p_expected_row_count  => p_expected_row_count,
+      p_stage_row_count     => p_stage_row_count,
+      p_reject_row_count    => p_reject_row_count,
+      p_core_row_count      => p_core_row_count,
+      p_data_file_name      => l_snapshot_file,
+      p_ready_file_name     => l_ready_file,
+      p_started_ts          => p_started_ts,
+      p_finished_ts         => p_finished_ts,
+      p_scheduled_for_ts    => l_attempt_ts,
+      p_next_retry_ts       => p_next_retry_ts,
+      p_retry_count_delta   => p_retry_count_delta
+    );
   END upsert_process_run;
 BEGIN
   l_attempt_ts := SYSTIMESTAMP;
@@ -282,12 +227,11 @@ BEGIN
     CAST(TRUNC(CAST(l_attempt_ts AS DATE)) AS TIMESTAMP) + NUMTODSINTERVAL(12, 'HOUR')
   );
 
-  IF l_run_mode NOT IN ('AUTO', 'MANUAL') THEN
-    RAISE_APPLICATION_ERROR(
-      -20016,
-      'Unsupported run mode ' || NVL(p_run_mode, '<NULL>') || '. Expected AUTO or MANUAL.'
-    );
-  END IF;
+  l_run_mode := dwh.pkg_dwh_util.normalize_run_mode(
+    p_run_mode   => p_run_mode,
+    p_error_code => -20016
+  );
+  l_input_valid := TRUE;
 
   upsert_process_run(
     p_status             => 'PROCESSING',
@@ -1060,7 +1004,7 @@ EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
 
-    IF NOT l_final_status_set THEN
+    IF l_input_valid AND NOT l_final_status_set THEN
       upsert_process_run(
         p_status             => 'FAILED',
         p_reason_code        => 'UNEXPECTED_ERROR',
