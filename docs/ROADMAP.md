@@ -29,13 +29,14 @@ Completed:
 - `Phase-07 Part 1`: GIIF-like `aml_report_spool`, outbound CSV/OK publication, and spool validation helpers
 - `Phase-07 Part 2`: AML workflow orchestration through `RUN_AML_WORKFLOW` and disabled scheduler runner `DWH.JOB_RUN_AML_WORKFLOW`
 - supporting runtime and file-layout stabilization for the mart/export path
+- `Phase-08 / MVP+` utility slice: shared PL/SQL process utilities for run-mode validation and `CTL_PROCESS_RUN` status upsert
 
 MVP status:
 - `Phase-07` completes the practical MVP scope with `load -> mart -> spool` orchestration.
 
 Optional after MVP:
-- `Phase-08 / MVP+`: maintainability and data-contract polish:
-  shared PL/SQL process utilities, stricter run-mode validation, reference dictionaries replacing selected hardcoded validation lists, and final flow diagrams
+- `Phase-08 / MVP+`: remaining maintainability and data-contract polish:
+  reference dictionaries replacing selected hardcoded validation lists and final flow diagrams
 - `Phase-09`: richer ETL run logs, DQ observability, and selected operational hardening
 
 ## What The MVP Already Demonstrates
