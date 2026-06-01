@@ -31,20 +31,6 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   l_stage_sql          VARCHAR2(32767 CHAR);
   l_reject_sql         VARCHAR2(32767 CHAR);
 
-  FUNCTION sql_string_literal (
-    p_value IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN '''' || REPLACE(p_value, '''', '''''') || '''';
-  END sql_string_literal;
-
-  FUNCTION sql_date_literal (
-    p_value IN DATE
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN 'DATE ' || sql_string_literal(TO_CHAR(p_value, 'YYYY-MM-DD'));
-  END sql_date_literal;
-
   FUNCTION build_loader_artifact_name (
     p_step      IN VARCHAR2,
     p_extension IN VARCHAR2
@@ -105,7 +91,7 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
       || CHR(39)
       || ') '
       || 'LOCATION ('
-      || sql_string_literal(p_snapshot_file)
+      || dwh.pkg_dwh_util.sql_string_literal(p_snapshot_file)
       || '))';
   END build_external_source;
 
@@ -538,7 +524,7 @@ BEGIN
       l_stage_ext_source
     ),
     '__BUSINESS_DATE__',
-    sql_date_literal(l_business_date)
+    dwh.pkg_dwh_util.sql_date_literal(l_business_date)
   );
 
   EXECUTE IMMEDIATE l_stage_sql;
@@ -787,10 +773,10 @@ BEGIN
         l_reject_ext_source
       ),
       '__BUSINESS_DATE__',
-      sql_date_literal(l_business_date)
+      dwh.pkg_dwh_util.sql_date_literal(l_business_date)
     ),
     '__SOURCE_FILE__',
-    sql_string_literal(l_snapshot_file)
+    dwh.pkg_dwh_util.sql_string_literal(l_snapshot_file)
   );
 
   EXECUTE IMMEDIATE l_reject_sql;

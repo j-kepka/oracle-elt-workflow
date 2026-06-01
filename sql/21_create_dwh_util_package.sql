@@ -6,6 +6,14 @@ CREATE OR REPLACE PACKAGE dwh.pkg_dwh_util AS
     p_error_code IN PLS_INTEGER
   ) RETURN VARCHAR2;
 
+  FUNCTION sql_string_literal (
+    p_value IN VARCHAR2
+  ) RETURN VARCHAR2;
+
+  FUNCTION sql_date_literal (
+    p_value IN DATE
+  ) RETURN VARCHAR2;
+
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
     p_business_date       IN DATE,
@@ -64,6 +72,20 @@ CREATE OR REPLACE PACKAGE BODY dwh.pkg_dwh_util AS
 
     RETURN l_run_mode;
   END normalize_run_mode;
+
+  FUNCTION sql_string_literal (
+    p_value IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN '''' || REPLACE(p_value, '''', '''''') || '''';
+  END sql_string_literal;
+
+  FUNCTION sql_date_literal (
+    p_value IN DATE
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN 'DATE ' || sql_string_literal(TO_CHAR(p_value, 'YYYY-MM-DD'));
+  END sql_date_literal;
 
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
