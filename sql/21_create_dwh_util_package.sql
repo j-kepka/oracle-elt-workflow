@@ -14,6 +14,14 @@ CREATE OR REPLACE PACKAGE dwh.pkg_dwh_util AS
     p_value IN DATE
   ) RETURN VARCHAR2;
 
+  FUNCTION build_loader_artifact_name (
+    p_process_name  IN VARCHAR2,
+    p_business_date IN DATE,
+    p_attempt_ts    IN TIMESTAMP,
+    p_step          IN VARCHAR2,
+    p_extension     IN VARCHAR2
+  ) RETURN VARCHAR2;
+
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
     p_business_date       IN DATE,
@@ -86,6 +94,25 @@ CREATE OR REPLACE PACKAGE BODY dwh.pkg_dwh_util AS
   BEGIN
     RETURN 'DATE ' || sql_string_literal(TO_CHAR(p_value, 'YYYY-MM-DD'));
   END sql_date_literal;
+
+  FUNCTION build_loader_artifact_name (
+    p_process_name  IN VARCHAR2,
+    p_business_date IN DATE,
+    p_attempt_ts    IN TIMESTAMP,
+    p_step          IN VARCHAR2,
+    p_extension     IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+  BEGIN
+    RETURN LOWER(p_process_name)
+      || '_'
+      || TO_CHAR(p_business_date, 'YYYYMMDD')
+      || '_'
+      || TO_CHAR(p_attempt_ts, 'YYYYMMDDHH24MISSFF6')
+      || '_'
+      || LOWER(p_step)
+      || '.'
+      || LOWER(p_extension);
+  END build_loader_artifact_name;
 
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,

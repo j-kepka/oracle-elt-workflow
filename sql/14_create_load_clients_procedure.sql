@@ -30,22 +30,6 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_clients (
   l_stage_sql          VARCHAR2(32767 CHAR);
   l_reject_sql         VARCHAR2(32767 CHAR);
 
-  FUNCTION build_loader_artifact_name (
-    p_step      IN VARCHAR2,
-    p_extension IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN LOWER(c_process_name)
-      || '_'
-      || TO_CHAR(l_business_date, 'YYYYMMDD')
-      || '_'
-      || TO_CHAR(l_attempt_ts, 'YYYYMMDDHH24MISSFF6')
-      || '_'
-      || LOWER(p_step)
-      || '.'
-      || LOWER(p_extension);
-  END build_loader_artifact_name;
-
   FUNCTION build_external_source (
     p_table_name    IN VARCHAR2,
     p_snapshot_file IN VARCHAR2,
@@ -55,9 +39,27 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_clients (
     l_bad_file      VARCHAR2(255 CHAR);
     l_discard_file  VARCHAR2(255 CHAR);
   BEGIN
-    l_log_file := build_loader_artifact_name(p_step_name, 'log');
-    l_bad_file := build_loader_artifact_name(p_step_name, 'bad');
-    l_discard_file := build_loader_artifact_name(p_step_name, 'dsc');
+    l_log_file := dwh.pkg_dwh_util.build_loader_artifact_name(
+      c_process_name,
+      l_business_date,
+      l_attempt_ts,
+      p_step_name,
+      'log'
+    );
+    l_bad_file := dwh.pkg_dwh_util.build_loader_artifact_name(
+      c_process_name,
+      l_business_date,
+      l_attempt_ts,
+      p_step_name,
+      'bad'
+    );
+    l_discard_file := dwh.pkg_dwh_util.build_loader_artifact_name(
+      c_process_name,
+      l_business_date,
+      l_attempt_ts,
+      p_step_name,
+      'dsc'
+    );
 
     RETURN p_table_name
       || ' EXTERNAL MODIFY ('
