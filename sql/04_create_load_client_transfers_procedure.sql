@@ -31,72 +31,6 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   l_stage_sql          VARCHAR2(32767 CHAR);
   l_reject_sql         VARCHAR2(32767 CHAR);
 
-  FUNCTION build_external_source (
-    p_table_name    IN VARCHAR2,
-    p_snapshot_file IN VARCHAR2,
-    p_step_name     IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-    l_log_file      VARCHAR2(255 CHAR);
-    l_bad_file      VARCHAR2(255 CHAR);
-    l_discard_file  VARCHAR2(255 CHAR);
-  BEGIN
-    l_log_file := dwh.pkg_dwh_util.build_loader_artifact_name(
-      c_process_name,
-      l_business_date,
-      l_attempt_ts,
-      p_step_name,
-      'log'
-    );
-    l_bad_file := dwh.pkg_dwh_util.build_loader_artifact_name(
-      c_process_name,
-      l_business_date,
-      l_attempt_ts,
-      p_step_name,
-      'bad'
-    );
-    l_discard_file := dwh.pkg_dwh_util.build_loader_artifact_name(
-      c_process_name,
-      l_business_date,
-      l_attempt_ts,
-      p_step_name,
-      'dsc'
-    );
-
-    RETURN p_table_name
-      || ' EXTERNAL MODIFY ('
-      || 'ACCESS PARAMETERS ('
-      || CHR(39)
-      || 'LOGFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_log_file
-      || CHR(39)
-      || CHR(39)
-      || ' BADFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_bad_file
-      || CHR(39)
-      || CHR(39)
-      || ' DISCARDFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_discard_file
-      || CHR(39)
-      || CHR(39)
-      || CHR(39)
-      || ') '
-      || 'LOCATION ('
-      || dwh.pkg_dwh_util.sql_string_literal(p_snapshot_file)
-      || '))';
-  END build_external_source;
-
   PROCEDURE assert_file_exists (
     p_directory     IN VARCHAR2,
     p_filename      IN VARCHAR2,
@@ -389,16 +323,24 @@ BEGIN
     p_next_retry_ts      => NULL
   );
 
-  l_stage_ext_source := build_external_source(
-    p_table_name    => 'dwh.ext_client_transfers',
-    p_snapshot_file => l_snapshot_file,
-    p_step_name     => 'stage'
+  l_stage_ext_source := dwh.pkg_dwh_util.build_external_source(
+    p_table_name     => 'dwh.ext_client_transfers',
+    p_snapshot_file  => l_snapshot_file,
+    p_work_directory => c_ext_work_dir,
+    p_process_name   => c_process_name,
+    p_business_date  => l_business_date,
+    p_attempt_ts     => l_attempt_ts,
+    p_step_name      => 'stage'
   );
 
-  l_reject_ext_source := build_external_source(
-    p_table_name    => 'dwh.ext_client_transfers',
-    p_snapshot_file => l_snapshot_file,
-    p_step_name     => 'reject'
+  l_reject_ext_source := dwh.pkg_dwh_util.build_external_source(
+    p_table_name     => 'dwh.ext_client_transfers',
+    p_snapshot_file  => l_snapshot_file,
+    p_work_directory => c_ext_work_dir,
+    p_process_name   => c_process_name,
+    p_business_date  => l_business_date,
+    p_attempt_ts     => l_attempt_ts,
+    p_step_name      => 'reject'
   );
 
   DELETE FROM dwh.stg_client_transfers

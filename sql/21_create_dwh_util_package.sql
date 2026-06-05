@@ -22,6 +22,16 @@ CREATE OR REPLACE PACKAGE dwh.pkg_dwh_util AS
     p_extension     IN VARCHAR2
   ) RETURN VARCHAR2;
 
+  FUNCTION build_external_source (
+    p_table_name     IN VARCHAR2,
+    p_snapshot_file  IN VARCHAR2,
+    p_work_directory IN VARCHAR2,
+    p_process_name   IN VARCHAR2,
+    p_business_date  IN DATE,
+    p_attempt_ts     IN TIMESTAMP,
+    p_step_name      IN VARCHAR2
+  ) RETURN VARCHAR2;
+
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
     p_business_date       IN DATE,
@@ -113,6 +123,65 @@ CREATE OR REPLACE PACKAGE BODY dwh.pkg_dwh_util AS
       || '.'
       || LOWER(p_extension);
   END build_loader_artifact_name;
+
+  FUNCTION build_external_source (
+    p_table_name     IN VARCHAR2,
+    p_snapshot_file  IN VARCHAR2,
+    p_work_directory IN VARCHAR2,
+    p_process_name   IN VARCHAR2,
+    p_business_date  IN DATE,
+    p_attempt_ts     IN TIMESTAMP,
+    p_step_name      IN VARCHAR2
+  ) RETURN VARCHAR2 AS
+    l_log_file          VARCHAR2(255 CHAR);
+    l_bad_file          VARCHAR2(255 CHAR);
+    l_discard_file      VARCHAR2(255 CHAR);
+    l_access_parameters VARCHAR2(4000 CHAR);
+  BEGIN
+    l_log_file := build_loader_artifact_name(
+      p_process_name,
+      p_business_date,
+      p_attempt_ts,
+      p_step_name,
+      'log'
+    );
+    l_bad_file := build_loader_artifact_name(
+      p_process_name,
+      p_business_date,
+      p_attempt_ts,
+      p_step_name,
+      'bad'
+    );
+    l_discard_file := build_loader_artifact_name(
+      p_process_name,
+      p_business_date,
+      p_attempt_ts,
+      p_step_name,
+      'dsc'
+    );
+
+    l_access_parameters := 'LOGFILE '
+      || p_work_directory
+      || ':'
+      || sql_string_literal(l_log_file)
+      || ' BADFILE '
+      || p_work_directory
+      || ':'
+      || sql_string_literal(l_bad_file)
+      || ' DISCARDFILE '
+      || p_work_directory
+      || ':'
+      || sql_string_literal(l_discard_file);
+
+    RETURN p_table_name
+      || ' EXTERNAL MODIFY ('
+      || 'ACCESS PARAMETERS ('
+      || sql_string_literal(l_access_parameters)
+      || ') '
+      || 'LOCATION ('
+      || sql_string_literal(p_snapshot_file)
+      || '))';
+  END build_external_source;
 
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
