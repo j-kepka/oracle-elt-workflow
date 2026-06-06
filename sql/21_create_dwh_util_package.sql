@@ -32,6 +32,21 @@ CREATE OR REPLACE PACKAGE dwh.pkg_dwh_util AS
     p_step_name      IN VARCHAR2
   ) RETURN VARCHAR2;
 
+  PROCEDURE assert_file_exists (
+    p_directory     IN VARCHAR2,
+    p_filename      IN VARCHAR2,
+    p_error_code    IN PLS_INTEGER,
+    p_error_message IN VARCHAR2
+  );
+
+  FUNCTION read_ready_row_count (
+    p_directory                  IN VARCHAR2,
+    p_filename                   IN VARCHAR2,
+    p_empty_file_error_code      IN PLS_INTEGER,
+    p_invalid_content_error_code IN PLS_INTEGER,
+    p_read_error_code            IN PLS_INTEGER
+  ) RETURN NUMBER;
+
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,
     p_business_date       IN DATE,
@@ -182,6 +197,84 @@ CREATE OR REPLACE PACKAGE BODY dwh.pkg_dwh_util AS
       || sql_string_literal(p_snapshot_file)
       || '))';
   END build_external_source;
+
+  PROCEDURE assert_file_exists (
+    p_directory     IN VARCHAR2,
+    p_filename      IN VARCHAR2,
+    p_error_code    IN PLS_INTEGER,
+    p_error_message IN VARCHAR2
+  ) AS
+    l_file_exists BOOLEAN := FALSE;
+    l_file_length NUMBER := 0;
+    l_block_size  BINARY_INTEGER := 0;
+  BEGIN
+    UTL_FILE.FGETATTR(
+      location    => p_directory,
+      filename    => p_filename,
+      fexists     => l_file_exists,
+      file_length => l_file_length,
+      block_size  => l_block_size
+    );
+
+    IF NOT l_file_exists THEN
+      RAISE_APPLICATION_ERROR(p_error_code, p_error_message);
+    END IF;
+  END assert_file_exists;
+
+  FUNCTION read_ready_row_count (
+    p_directory                  IN VARCHAR2,
+    p_filename                   IN VARCHAR2,
+    p_empty_file_error_code      IN PLS_INTEGER,
+    p_invalid_content_error_code IN PLS_INTEGER,
+    p_read_error_code            IN PLS_INTEGER
+  ) RETURN NUMBER AS
+    l_ready_file    UTL_FILE.FILE_TYPE;
+    l_ready_line    VARCHAR2(32767 CHAR);
+    l_expected_rows NUMBER := 0;
+  BEGIN
+    l_ready_file := UTL_FILE.FOPEN(
+      location  => p_directory,
+      filename  => p_filename,
+      open_mode => 'R'
+    );
+
+    BEGIN
+      UTL_FILE.GET_LINE(l_ready_file, l_ready_line);
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        UTL_FILE.FCLOSE(l_ready_file);
+        RAISE_APPLICATION_ERROR(
+          p_empty_file_error_code,
+          'Ready file ' || p_filename || ' is empty.'
+        );
+    END;
+
+    UTL_FILE.FCLOSE(l_ready_file);
+
+    IF NOT REGEXP_LIKE(TRIM(l_ready_line), '^[0-9]+$') THEN
+      RAISE_APPLICATION_ERROR(
+        p_invalid_content_error_code,
+        'Ready file ' || p_filename || ' must contain a single non-negative integer row count.'
+      );
+    END IF;
+
+    l_expected_rows := TO_NUMBER(TRIM(l_ready_line));
+    RETURN l_expected_rows;
+  EXCEPTION
+    WHEN UTL_FILE.INVALID_PATH
+      OR UTL_FILE.INVALID_MODE
+      OR UTL_FILE.INVALID_OPERATION
+      OR UTL_FILE.READ_ERROR
+      OR UTL_FILE.INTERNAL_ERROR THEN
+      IF UTL_FILE.IS_OPEN(l_ready_file) THEN
+        UTL_FILE.FCLOSE(l_ready_file);
+      END IF;
+
+      RAISE_APPLICATION_ERROR(
+        p_read_error_code,
+        'Unable to read ready file ' || p_filename || ': ' || SQLERRM
+      );
+  END read_ready_row_count;
 
   PROCEDURE upsert_process_run (
     p_process_name        IN VARCHAR2,

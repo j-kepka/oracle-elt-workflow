@@ -30,81 +30,6 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_clients (
   l_stage_sql          VARCHAR2(32767 CHAR);
   l_reject_sql         VARCHAR2(32767 CHAR);
 
-  PROCEDURE assert_file_exists (
-    p_directory     IN VARCHAR2,
-    p_filename      IN VARCHAR2,
-    p_error_code    IN NUMBER,
-    p_error_message IN VARCHAR2
-  ) AS
-    l_file_exists BOOLEAN := FALSE;
-    l_file_length NUMBER := 0;
-    l_block_size  BINARY_INTEGER := 0;
-  BEGIN
-    UTL_FILE.FGETATTR(
-      location    => p_directory,
-      filename    => p_filename,
-      fexists     => l_file_exists,
-      file_length => l_file_length,
-      block_size  => l_block_size
-    );
-
-    IF NOT l_file_exists THEN
-      RAISE_APPLICATION_ERROR(p_error_code, p_error_message);
-    END IF;
-  END assert_file_exists;
-
-  FUNCTION read_expected_rows (
-    p_directory IN VARCHAR2,
-    p_filename  IN VARCHAR2
-  ) RETURN NUMBER AS
-    l_ok_file       UTL_FILE.FILE_TYPE;
-    l_ok_line       VARCHAR2(32767 CHAR);
-    l_expected_rows NUMBER := 0;
-  BEGIN
-    l_ok_file := UTL_FILE.FOPEN(
-      location  => p_directory,
-      filename  => p_filename,
-      open_mode => 'R'
-    );
-
-    BEGIN
-      UTL_FILE.GET_LINE(l_ok_file, l_ok_line);
-    EXCEPTION
-      WHEN NO_DATA_FOUND THEN
-        UTL_FILE.FCLOSE(l_ok_file);
-        RAISE_APPLICATION_ERROR(
-          -20111,
-          'Ready file ' || p_filename || ' is empty.'
-        );
-    END;
-
-    UTL_FILE.FCLOSE(l_ok_file);
-
-    IF NOT REGEXP_LIKE(TRIM(l_ok_line), '^[0-9]+$') THEN
-      RAISE_APPLICATION_ERROR(
-        -20112,
-        'Ready file ' || p_filename || ' must contain a single non-negative integer row count.'
-      );
-    END IF;
-
-    l_expected_rows := TO_NUMBER(TRIM(l_ok_line));
-    RETURN l_expected_rows;
-  EXCEPTION
-    WHEN UTL_FILE.INVALID_PATH
-      OR UTL_FILE.INVALID_MODE
-      OR UTL_FILE.INVALID_OPERATION
-      OR UTL_FILE.READ_ERROR
-      OR UTL_FILE.INTERNAL_ERROR THEN
-      IF UTL_FILE.IS_OPEN(l_ok_file) THEN
-        UTL_FILE.FCLOSE(l_ok_file);
-      END IF;
-
-      RAISE_APPLICATION_ERROR(
-        -20113,
-        'Unable to read ready file ' || p_filename || ': ' || SQLERRM
-      );
-  END read_expected_rows;
-
   PROCEDURE upsert_process_run (
     p_status             IN VARCHAR2,
     p_reason_code        IN VARCHAR2,
@@ -169,7 +94,7 @@ BEGIN
 
   LOOP
     BEGIN
-      assert_file_exists(
+      dwh.pkg_dwh_util.assert_file_exists(
         p_directory     => c_ext_dir,
         p_filename      => l_ready_file,
         p_error_code    => -20110,
@@ -257,9 +182,12 @@ BEGIN
   END IF;
 
   BEGIN
-    l_expected_rows := read_expected_rows(
-      p_directory => c_ext_dir,
-      p_filename  => l_ready_file
+    l_expected_rows := dwh.pkg_dwh_util.read_ready_row_count(
+      p_directory                  => c_ext_dir,
+      p_filename                   => l_ready_file,
+      p_empty_file_error_code      => -20111,
+      p_invalid_content_error_code => -20112,
+      p_read_error_code            => -20113
     );
   EXCEPTION
     WHEN OTHERS THEN
@@ -284,7 +212,7 @@ BEGIN
   END;
 
   BEGIN
-    assert_file_exists(
+    dwh.pkg_dwh_util.assert_file_exists(
       p_directory     => c_ext_dir,
       p_filename      => l_snapshot_file,
       p_error_code    => -20114,
