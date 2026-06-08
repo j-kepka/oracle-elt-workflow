@@ -31,159 +31,6 @@ CREATE OR REPLACE PROCEDURE dwh.prc_load_client_transfers (
   l_stage_sql          VARCHAR2(32767 CHAR);
   l_reject_sql         VARCHAR2(32767 CHAR);
 
-  FUNCTION sql_string_literal (
-    p_value IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN '''' || REPLACE(p_value, '''', '''''') || '''';
-  END sql_string_literal;
-
-  FUNCTION sql_date_literal (
-    p_value IN DATE
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN 'DATE ' || sql_string_literal(TO_CHAR(p_value, 'YYYY-MM-DD'));
-  END sql_date_literal;
-
-  FUNCTION build_loader_artifact_name (
-    p_step      IN VARCHAR2,
-    p_extension IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-  BEGIN
-    RETURN LOWER(c_process_name)
-      || '_'
-      || TO_CHAR(l_business_date, 'YYYYMMDD')
-      || '_'
-      || TO_CHAR(l_attempt_ts, 'YYYYMMDDHH24MISSFF6')
-      || '_'
-      || LOWER(p_step)
-      || '.'
-      || LOWER(p_extension);
-  END build_loader_artifact_name;
-
-  FUNCTION build_external_source (
-    p_table_name    IN VARCHAR2,
-    p_snapshot_file IN VARCHAR2,
-    p_step_name     IN VARCHAR2
-  ) RETURN VARCHAR2 AS
-    l_log_file      VARCHAR2(255 CHAR);
-    l_bad_file      VARCHAR2(255 CHAR);
-    l_discard_file  VARCHAR2(255 CHAR);
-  BEGIN
-    l_log_file := build_loader_artifact_name(p_step_name, 'log');
-    l_bad_file := build_loader_artifact_name(p_step_name, 'bad');
-    l_discard_file := build_loader_artifact_name(p_step_name, 'dsc');
-
-    RETURN p_table_name
-      || ' EXTERNAL MODIFY ('
-      || 'ACCESS PARAMETERS ('
-      || CHR(39)
-      || 'LOGFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_log_file
-      || CHR(39)
-      || CHR(39)
-      || ' BADFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_bad_file
-      || CHR(39)
-      || CHR(39)
-      || ' DISCARDFILE '
-      || c_ext_work_dir
-      || ':'
-      || CHR(39)
-      || CHR(39)
-      || l_discard_file
-      || CHR(39)
-      || CHR(39)
-      || CHR(39)
-      || ') '
-      || 'LOCATION ('
-      || sql_string_literal(p_snapshot_file)
-      || '))';
-  END build_external_source;
-
-  PROCEDURE assert_file_exists (
-    p_directory     IN VARCHAR2,
-    p_filename      IN VARCHAR2,
-    p_error_code    IN NUMBER,
-    p_error_message IN VARCHAR2
-  ) AS
-    l_file_exists BOOLEAN := FALSE;
-    l_file_length NUMBER := 0;
-    l_block_size  BINARY_INTEGER := 0;
-  BEGIN
-    UTL_FILE.FGETATTR(
-      location    => p_directory,
-      filename    => p_filename,
-      fexists     => l_file_exists,
-      file_length => l_file_length,
-      block_size  => l_block_size
-    );
-
-    IF NOT l_file_exists THEN
-      RAISE_APPLICATION_ERROR(p_error_code, p_error_message);
-    END IF;
-  END assert_file_exists;
-
-  FUNCTION read_expected_rows (
-    p_directory IN VARCHAR2,
-    p_filename  IN VARCHAR2
-  ) RETURN NUMBER AS
-    l_ok_file       UTL_FILE.FILE_TYPE;
-    l_ok_line       VARCHAR2(32767 CHAR);
-    l_expected_rows NUMBER := 0;
-  BEGIN
-    l_ok_file := UTL_FILE.FOPEN(
-      location  => p_directory,
-      filename  => p_filename,
-      open_mode => 'R'
-    );
-
-    BEGIN
-      UTL_FILE.GET_LINE(l_ok_file, l_ok_line);
-    EXCEPTION
-      WHEN NO_DATA_FOUND THEN
-        UTL_FILE.FCLOSE(l_ok_file);
-        RAISE_APPLICATION_ERROR(
-          -20011,
-          'Ready file ' || p_filename || ' is empty.'
-        );
-    END;
-
-    UTL_FILE.FCLOSE(l_ok_file);
-
-    IF NOT REGEXP_LIKE(TRIM(l_ok_line), '^[0-9]+$') THEN
-      RAISE_APPLICATION_ERROR(
-        -20012,
-        'Ready file ' || p_filename || ' must contain a single non-negative integer row count.'
-      );
-    END IF;
-
-    l_expected_rows := TO_NUMBER(TRIM(l_ok_line));
-    RETURN l_expected_rows;
-  EXCEPTION
-    WHEN UTL_FILE.INVALID_PATH
-      OR UTL_FILE.INVALID_MODE
-      OR UTL_FILE.INVALID_OPERATION
-      OR UTL_FILE.READ_ERROR
-      OR UTL_FILE.INTERNAL_ERROR THEN
-      IF UTL_FILE.IS_OPEN(l_ok_file) THEN
-        UTL_FILE.FCLOSE(l_ok_file);
-      END IF;
-
-      RAISE_APPLICATION_ERROR(
-        -20013,
-        'Unable to read ready file ' || p_filename || ': ' || SQLERRM
-      );
-  END read_expected_rows;
-
   PROCEDURE upsert_process_run (
     p_status             IN VARCHAR2,
     p_reason_code        IN VARCHAR2,
@@ -248,7 +95,7 @@ BEGIN
 
   LOOP
     BEGIN
-      assert_file_exists(
+      dwh.pkg_dwh_util.assert_file_exists(
         p_directory     => c_ext_dir,
         p_filename      => l_ready_file,
         p_error_code    => -20010,
@@ -336,9 +183,12 @@ BEGIN
   END IF;
 
   BEGIN
-    l_expected_rows := read_expected_rows(
-      p_directory => c_ext_dir,
-      p_filename  => l_ready_file
+    l_expected_rows := dwh.pkg_dwh_util.read_ready_row_count(
+      p_directory                  => c_ext_dir,
+      p_filename                   => l_ready_file,
+      p_empty_file_error_code      => -20011,
+      p_invalid_content_error_code => -20012,
+      p_read_error_code            => -20013
     );
   EXCEPTION
     WHEN OTHERS THEN
@@ -363,7 +213,7 @@ BEGIN
   END;
 
   BEGIN
-    assert_file_exists(
+    dwh.pkg_dwh_util.assert_file_exists(
       p_directory     => c_ext_dir,
       p_filename      => l_snapshot_file,
       p_error_code    => -20014,
@@ -401,16 +251,24 @@ BEGIN
     p_next_retry_ts      => NULL
   );
 
-  l_stage_ext_source := build_external_source(
-    p_table_name    => 'dwh.ext_client_transfers',
-    p_snapshot_file => l_snapshot_file,
-    p_step_name     => 'stage'
+  l_stage_ext_source := dwh.pkg_dwh_util.build_external_source(
+    p_table_name     => 'dwh.ext_client_transfers',
+    p_snapshot_file  => l_snapshot_file,
+    p_work_directory => c_ext_work_dir,
+    p_process_name   => c_process_name,
+    p_business_date  => l_business_date,
+    p_attempt_ts     => l_attempt_ts,
+    p_step_name      => 'stage'
   );
 
-  l_reject_ext_source := build_external_source(
-    p_table_name    => 'dwh.ext_client_transfers',
-    p_snapshot_file => l_snapshot_file,
-    p_step_name     => 'reject'
+  l_reject_ext_source := dwh.pkg_dwh_util.build_external_source(
+    p_table_name     => 'dwh.ext_client_transfers',
+    p_snapshot_file  => l_snapshot_file,
+    p_work_directory => c_ext_work_dir,
+    p_process_name   => c_process_name,
+    p_business_date  => l_business_date,
+    p_attempt_ts     => l_attempt_ts,
+    p_step_name      => 'reject'
   );
 
   DELETE FROM dwh.stg_client_transfers
@@ -538,7 +396,7 @@ BEGIN
       l_stage_ext_source
     ),
     '__BUSINESS_DATE__',
-    sql_date_literal(l_business_date)
+    dwh.pkg_dwh_util.sql_date_literal(l_business_date)
   );
 
   EXECUTE IMMEDIATE l_stage_sql;
@@ -787,10 +645,10 @@ BEGIN
         l_reject_ext_source
       ),
       '__BUSINESS_DATE__',
-      sql_date_literal(l_business_date)
+      dwh.pkg_dwh_util.sql_date_literal(l_business_date)
     ),
     '__SOURCE_FILE__',
-    sql_string_literal(l_snapshot_file)
+    dwh.pkg_dwh_util.sql_string_literal(l_snapshot_file)
   );
 
   EXECUTE IMMEDIATE l_reject_sql;
