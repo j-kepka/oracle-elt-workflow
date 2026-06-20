@@ -49,6 +49,8 @@ CONNECT dwh/"&&DWH_PASSWORD"@&&PDB_CONNECT_STRING
 @&&WORKSPACE_ROOT/sql/13_create_core_clients.sql
 @&&WORKSPACE_ROOT/sql/06_create_core_client_transfers.sql
 @&&WORKSPACE_ROOT/sql/07_create_ref_fx_rate_daily.sql
+@&&WORKSPACE_ROOT/sql/08_create_ref_currency.sql
+@&&WORKSPACE_ROOT/sql/09_create_ref_country.sql
 @&&WORKSPACE_ROOT/sql/15_create_mart_transfer_aml.sql
 @&&WORKSPACE_ROOT/sql/17_create_aml_report_spool.sql
 @&&WORKSPACE_ROOT/sql/10_create_control_structures.sql
