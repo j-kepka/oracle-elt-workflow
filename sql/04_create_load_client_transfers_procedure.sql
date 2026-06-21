@@ -317,16 +317,21 @@ BEGIN
         TRIM(transfer_ts_raw) DEFAULT NULL ON CONVERSION ERROR,
         'YYYY-MM-DD HH24:MI:SS'
       ) AS transfer_ts,
-      -- Temporary business scope until reference tables are added.
       CASE
-        WHEN UPPER(TRIM(currency_code_raw)) IN ('EUR', 'USD', 'PLN', 'CZK', 'GBP') THEN 1
+        WHEN EXISTS (
+          SELECT 1
+          FROM dwh.ref_currency ref
+          WHERE ref.currency_code = UPPER(TRIM(currency_code_raw))
+            AND ref.is_active_flag = 1
+        ) THEN 1
         ELSE 0
       END AS is_supported_currency,
       CASE
-        WHEN UPPER(TRIM(country_code_raw)) IN (
-          'AT', 'BE', 'BG', 'CH', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR',
-          'GB', 'GR', 'HR', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MT',
-          'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'US'
+        WHEN EXISTS (
+          SELECT 1
+          FROM dwh.ref_country ref
+          WHERE ref.country_code = UPPER(TRIM(country_code_raw))
+            AND ref.is_active_flag = 1
         ) THEN 1
         ELSE 0
       END AS is_supported_country
@@ -446,16 +451,21 @@ BEGIN
         TRIM(transfer_ts_raw) DEFAULT NULL ON CONVERSION ERROR,
         'YYYY-MM-DD HH24:MI:SS'
       ) AS transfer_ts,
-      -- Temporary business scope until reference tables are added.
       CASE
-        WHEN UPPER(TRIM(currency_code_raw)) IN ('EUR', 'USD', 'PLN', 'CZK', 'GBP') THEN 1
+        WHEN EXISTS (
+          SELECT 1
+          FROM dwh.ref_currency ref
+          WHERE ref.currency_code = UPPER(TRIM(currency_code_raw))
+            AND ref.is_active_flag = 1
+        ) THEN 1
         ELSE 0
       END AS is_supported_currency,
       CASE
-        WHEN UPPER(TRIM(country_code_raw)) IN (
-          'AT', 'BE', 'BG', 'CH', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR',
-          'GB', 'GR', 'HR', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MT',
-          'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'US'
+        WHEN EXISTS (
+          SELECT 1
+          FROM dwh.ref_country ref
+          WHERE ref.country_code = UPPER(TRIM(country_code_raw))
+            AND ref.is_active_flag = 1
         ) THEN 1
         ELSE 0
       END AS is_supported_country

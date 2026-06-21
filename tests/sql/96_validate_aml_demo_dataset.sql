@@ -89,6 +89,41 @@ WITH checks AS (
   FROM dual
   UNION ALL
   SELECT
+    'REF_CURRENCY_SET',
+    CASE
+      WHEN (
+        SELECT COUNT(*)
+        FROM dwh.ref_currency
+      ) = 5
+      AND (
+        SELECT LISTAGG(TRIM(currency_code), ',') WITHIN GROUP (ORDER BY currency_code)
+        FROM dwh.ref_currency
+        WHERE is_active_flag = 1
+      ) = 'CZK,EUR,GBP,PLN,USD' THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected five active supported transfer currencies'
+  FROM dual
+  UNION ALL
+  SELECT
+    'REF_COUNTRY_SET',
+    CASE
+      WHEN (
+        SELECT COUNT(*)
+        FROM dwh.ref_country
+      ) = 33
+      AND (
+        SELECT LISTAGG(TRIM(country_code), ',') WITHIN GROUP (ORDER BY country_code)
+        FROM dwh.ref_country
+        WHERE is_active_flag = 1
+      ) = 'AT,BE,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US'
+        THEN 'PASS'
+      ELSE 'FAIL'
+    END,
+    'expected 33 active supported transfer countries'
+  FROM dual
+  UNION ALL
+  SELECT
     'FX_ROW_COUNT',
     CASE
       WHEN (
